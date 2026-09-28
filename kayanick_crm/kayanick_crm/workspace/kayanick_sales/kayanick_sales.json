@@ -1,0 +1,151 @@
+{
+ "app": "kayanick_crm",
+ "charts": [
+  {
+   "chart_name": "KC Visits per Month",
+   "label": "Visits per Month"
+  },
+  {
+   "chart_name": "KC Pipeline by Stage",
+   "label": "Pipeline by Stage"
+  }
+ ],
+ "content": "[{\"id\": \"1462a21dbd\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Quick Actions</b></span>\", \"col\": 12}}, {\"id\": \"449dccf14d\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"New Visit\", \"col\": 3}}, {\"id\": \"92e402ab4f\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"New Task\", \"col\": 3}}, {\"id\": \"eeabeacd7a\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Overview</b></span>\", \"col\": 12}}, {\"id\": \"14f8f4faac\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Total Accounts\", \"col\": 3}}, {\"id\": \"c46bf5e4fa\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Total Doctors\", \"col\": 3}}, {\"id\": \"f084272359\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Visits Logged\", \"col\": 3}}, {\"id\": \"98e0c6ff1b\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Active Follow-up Tasks\", \"col\": 3}}, {\"id\": \"c8a0d6f268\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Overdue Tasks\", \"col\": 3}}, {\"id\": \"f8eb963143\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Open Opportunities\", \"col\": 3}}, {\"id\": \"71245f74bd\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Pipeline USD\", \"col\": 3}}, {\"id\": \"fcae9bb9b4\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Weighted Pipeline USD\", \"col\": 3}}, {\"id\": \"d0bf958b6f\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"A-Tier Accounts\", \"col\": 3}}, {\"id\": \"aa2364fbd4\", \"type\": \"number_card\", \"data\": {\"number_card_name\": \"Tasks Due Next 7 Days\", \"col\": 3}}, {\"id\": \"37a37b759a\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Trends</b></span>\", \"col\": 12}}, {\"id\": \"942c858b4f\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Visits per Month\", \"col\": 6}}, {\"id\": \"44ae5be38c\", \"type\": \"chart\", \"data\": {\"chart_name\": \"Pipeline by Stage\", \"col\": 6}}, {\"id\": \"b2178deef8\", \"type\": \"header\", \"data\": {\"text\": \"<span class=\\\"h4\\\"><b>Browse</b></span>\", \"col\": 12}}, {\"id\": \"0be4d4472a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Visits\", \"col\": 3}}, {\"id\": \"235807083e\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Tasks\", \"col\": 3}}, {\"id\": \"8887209589\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Accounts\", \"col\": 3}}, {\"id\": \"3c3ffb4ec7\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Doctors\", \"col\": 3}}, {\"id\": \"27b21fe9ec\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Doctor Plans\", \"col\": 3}}, {\"id\": \"238a4dbd51\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Opportunities\", \"col\": 3}}, {\"id\": \"f151d8548a\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Clinical Cases\", \"col\": 3}}, {\"id\": \"f5d196f50f\", \"type\": \"shortcut\", \"data\": {\"shortcut_name\": \"Sales Rep Activity\", \"col\": 3}}]",
+ "creation": "2026-09-29 04:18:50.612854",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "hide_custom": 0,
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "KAYANICK Sales",
+ "link_type": "DocType",
+ "links": [],
+ "modified": "2026-09-29 04:18:50.612854",
+ "modified_by": "Administrator",
+ "module": "KAYANICK CRM",
+ "name": "KAYANICK Sales",
+ "number_cards": [
+  {
+   "label": "Total Accounts",
+   "number_card_name": "KC Accounts"
+  },
+  {
+   "label": "Total Doctors",
+   "number_card_name": "KC Doctors"
+  },
+  {
+   "label": "Visits Logged",
+   "number_card_name": "KC Visits Logged"
+  },
+  {
+   "label": "Active Follow-up Tasks",
+   "number_card_name": "KC Active Follow-ups"
+  },
+  {
+   "label": "Overdue Tasks",
+   "number_card_name": "KC Overdue Tasks"
+  },
+  {
+   "label": "Open Opportunities",
+   "number_card_name": "KC Open Opportunities"
+  },
+  {
+   "label": "Pipeline USD",
+   "number_card_name": "KC Pipeline USD"
+  },
+  {
+   "label": "Weighted Pipeline USD",
+   "number_card_name": "KC Weighted Pipeline USD"
+  },
+  {
+   "label": "A-Tier Accounts",
+   "number_card_name": "KC A-Tier Accounts"
+  },
+  {
+   "label": "Tasks Due Next 7 Days",
+   "number_card_name": "KC Tasks Due 7 Days"
+  }
+ ],
+ "owner": "Administrator",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [
+  {
+   "role": "Sales Rep"
+  },
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ],
+ "sequence_id": 0.0,
+ "shortcuts": [
+  {
+   "doc_view": "New",
+   "label": "New Visit",
+   "link_to": "KC Visit",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "New",
+   "label": "New Task",
+   "link_to": "KC Task",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Visits",
+   "link_to": "KC Visit",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Tasks",
+   "link_to": "KC Task",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Accounts",
+   "link_to": "KC Account",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Doctors",
+   "link_to": "KC Doctor",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Doctor Plans",
+   "link_to": "KC Doctor Plan",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Opportunities",
+   "link_to": "KC Opportunity",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Clinical Cases",
+   "link_to": "KC Clinical Case",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "",
+   "label": "Sales Rep Activity",
+   "link_to": "Sales Rep Activity",
+   "report_ref_doctype": "KC Visit",
+   "type": "Report"
+  }
+ ],
+ "title": "KAYANICK Sales",
+ "type": "Workspace"
+}

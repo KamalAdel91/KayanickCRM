@@ -1,0 +1,285 @@
+{
+ "doctype": "DocType",
+ "name": "KC Account",
+ "module": "KAYANICK CRM",
+ "custom": 0,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "ACC-.####",
+   "reqd": 1,
+   "default": "ACC-.####",
+   "hidden": 1
+  },
+  {
+   "fieldname": "sb_account",
+   "fieldtype": "Section Break",
+   "label": "Account"
+  },
+  {
+   "fieldname": "account_name",
+   "fieldtype": "Data",
+   "label": "Account Name",
+   "reqd": 1,
+   "unique": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "account_type",
+   "fieldtype": "Select",
+   "label": "Account Type",
+   "options": "Hospital\nClinic\nCath Lab\nMedical Center\nOther",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "tier",
+   "fieldtype": "Select",
+   "label": "Tier",
+   "options": "A\nB\nC",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "account_potential",
+   "fieldtype": "Select",
+   "label": "Account Potential",
+   "options": "High\nMedium\nLow"
+  },
+  {
+   "fieldname": "registration_status",
+   "fieldtype": "Select",
+   "label": "Registration Status",
+   "options": "Registered\nPending\nNot Registered"
+  },
+  {
+   "fieldname": "account_owner",
+   "fieldtype": "Link",
+   "label": "Account Owner",
+   "options": "User",
+   "default": "__user",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_location",
+   "fieldtype": "Section Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "area",
+   "fieldtype": "Data",
+   "label": "Area"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "sb_contacts",
+   "fieldtype": "Section Break",
+   "label": "Contacts"
+  },
+  {
+   "fieldname": "main_contact",
+   "fieldtype": "Data",
+   "label": "Main Contact"
+  },
+  {
+   "fieldname": "main_contact_mobile",
+   "fieldtype": "Data",
+   "label": "Main Contact Mobile",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "main_contact_email",
+   "fieldtype": "Data",
+   "label": "Main Contact Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "procurement_contact",
+   "fieldtype": "Data",
+   "label": "Procurement Contact"
+  },
+  {
+   "fieldname": "procurement_mobile",
+   "fieldtype": "Data",
+   "label": "Procurement Mobile",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "cath_lab_manager",
+   "fieldtype": "Data",
+   "label": "Cath Lab Manager"
+  },
+  {
+   "fieldname": "decision_maker",
+   "fieldtype": "Data",
+   "label": "Decision Maker"
+  },
+  {
+   "fieldname": "key_departments",
+   "fieldtype": "Small Text",
+   "label": "Key Departments"
+  },
+  {
+   "fieldname": "sb_volumes_and_brands",
+   "fieldtype": "Section Break",
+   "label": "Volumes and Brands"
+  },
+  {
+   "fieldname": "no_of_cath_labs",
+   "fieldtype": "Int",
+   "label": "No Of Cath Labs"
+  },
+  {
+   "fieldname": "monthly_pci_volume",
+   "fieldtype": "Int",
+   "label": "Monthly PCI Volume"
+  },
+  {
+   "fieldname": "estimated_ivl_cases_per_month",
+   "fieldtype": "Int",
+   "label": "Estimated IVL Cases Per Month"
+  },
+  {
+   "fieldname": "current_ivl_brand",
+   "fieldtype": "Data",
+   "label": "Current IVL Brand"
+  },
+  {
+   "fieldname": "current_ivus_brand",
+   "fieldtype": "Data",
+   "label": "Current IVUS Brand"
+  },
+  {
+   "fieldname": "current_physiology_brand",
+   "fieldtype": "Data",
+   "label": "Current Physiology Brand"
+  },
+  {
+   "fieldname": "competitor_supplier",
+   "fieldtype": "Data",
+   "label": "Competitor Supplier"
+  },
+  {
+   "fieldname": "payment_terms",
+   "fieldtype": "Data",
+   "label": "Payment Terms"
+  },
+  {
+   "fieldname": "sb_tracking",
+   "fieldtype": "Section Break",
+   "label": "Tracking"
+  },
+  {
+   "fieldname": "last_visit",
+   "fieldtype": "Date",
+   "label": "Last Visit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "next_visit",
+   "fieldtype": "Date",
+   "label": "Next Visit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "account_notes",
+   "fieldtype": "Text Editor",
+   "label": "Account Notes"
+  }
+ ],
+ "field_order": [
+  "naming_series",
+  "sb_account",
+  "account_name",
+  "account_type",
+  "tier",
+  "account_potential",
+  "registration_status",
+  "account_owner",
+  "sb_location",
+  "city",
+  "area",
+  "address",
+  "sb_contacts",
+  "main_contact",
+  "main_contact_mobile",
+  "main_contact_email",
+  "procurement_contact",
+  "procurement_mobile",
+  "cath_lab_manager",
+  "decision_maker",
+  "key_departments",
+  "sb_volumes_and_brands",
+  "no_of_cath_labs",
+  "monthly_pci_volume",
+  "estimated_ivl_cases_per_month",
+  "current_ivl_brand",
+  "current_ivus_brand",
+  "current_physiology_brand",
+  "competitor_supplier",
+  "payment_terms",
+  "sb_tracking",
+  "last_visit",
+  "next_visit",
+  "account_notes"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Sales Rep",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 0,
+   "print": 1,
+   "email": 1,
+   "share": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "row_format": "Dynamic",
+ "autoname": "naming_series:",
+ "naming_rule": "By \"Naming Series\" field",
+ "title_field": "account_name",
+ "show_title_field_in_link": 1
+}

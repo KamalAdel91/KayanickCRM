@@ -1,0 +1,37 @@
+[
+ {
+  "add_total_row": 0,
+  "add_translate_data": 0,
+  "columns": [],
+  "disable_prepared_report_automation": 0,
+  "disabled": 0,
+  "docstatus": 0,
+  "doctype": "Report",
+  "doctype_to_sync": [],
+  "filters": [],
+  "is_standard": "No",
+  "javascript": null,
+  "json": null,
+  "letter_head": "Company Letterhead - Grey",
+  "modified": "2026-09-29 04:18:50.600182",
+  "module": "KAYANICK CRM",
+  "name": "Sales Rep Activity",
+  "prepared_report": 0,
+  "query": "\nSELECT\n  ur.user AS `Sales Rep:Link/User:220`,\n  (SELECT COUNT(*) FROM `tabKC Visit` v WHERE v.sales_rep = ur.user) AS `Visits:Int:90`,\n  (SELECT COUNT(*) FROM `tabKC Task` t WHERE t.owner_rep = ur.user\n     AND t.status IN ('Open', 'In Progress')) AS `Open Tasks:Int:110`,\n  (SELECT COUNT(*) FROM `tabKC Task` t WHERE t.owner_rep = ur.user\n     AND t.status NOT IN ('Completed', 'Cancelled') AND t.due_date < CURDATE()) AS `Overdue Tasks:Int:120`,\n  (SELECT IFNULL(SUM(o.estimated_annual_revenue_usd), 0) FROM `tabKC Opportunity` o\n     WHERE o.sales_rep = ur.user AND o.opportunity_stage NOT IN ('Won', 'Lost')) AS `Pipeline USD:Currency:150`\nFROM (SELECT DISTINCT parent AS user FROM `tabHas Role`\n      WHERE role = 'Sales Rep' AND parenttype = 'User') ur\nJOIN `tabUser` u ON u.name = ur.user AND u.enabled = 1\nORDER BY 2 DESC\n",
+  "ref_doctype": "KC Visit",
+  "reference_report": null,
+  "report_name": "Sales Rep Activity",
+  "report_script": null,
+  "report_type": "Query Report",
+  "roles": [
+   {
+    "role": "Sales Manager"
+   },
+   {
+    "role": "System Manager"
+   }
+  ],
+  "snapshot_report": 0,
+  "timeout": 0
+ }
+]

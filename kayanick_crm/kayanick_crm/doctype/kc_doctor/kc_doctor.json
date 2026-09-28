@@ -1,0 +1,248 @@
+{
+ "doctype": "DocType",
+ "name": "KC Doctor",
+ "module": "KAYANICK CRM",
+ "custom": 0,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "DOC-.####",
+   "reqd": 1,
+   "default": "DOC-.####",
+   "hidden": 1
+  },
+  {
+   "fieldname": "sb_doctor",
+   "fieldtype": "Section Break",
+   "label": "Doctor"
+  },
+  {
+   "fieldname": "doctor_name",
+   "fieldtype": "Data",
+   "label": "Doctor Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "specialty",
+   "fieldtype": "Select",
+   "label": "Specialty",
+   "options": "Cardiology\nInterventional Cardiology\nCardiac Surgery\nOther",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "subspecialty",
+   "fieldtype": "Data",
+   "label": "Subspecialty"
+  },
+  {
+   "fieldname": "hospital_account",
+   "fieldtype": "Link",
+   "label": "Hospital Account",
+   "options": "KC Account",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City",
+   "fetch_from": "hospital_account.city",
+   "read_only": 1
+  },
+  {
+   "fieldname": "owner_rep",
+   "fieldtype": "Link",
+   "label": "Owner Rep",
+   "options": "User",
+   "default": "__user",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_contact",
+   "fieldtype": "Section Break",
+   "label": "Contact"
+  },
+  {
+   "fieldname": "mobile",
+   "fieldtype": "Data",
+   "label": "Mobile",
+   "options": "Phone"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "role_position",
+   "fieldtype": "Data",
+   "label": "Role Position"
+  },
+  {
+   "fieldname": "sb_clinical_profile",
+   "fieldtype": "Section Break",
+   "label": "Clinical Profile"
+  },
+  {
+   "fieldname": "decision_influence",
+   "fieldtype": "Select",
+   "label": "Decision Influence",
+   "options": "High\nMedium\nLow"
+  },
+  {
+   "fieldname": "procedures_cases_per_month",
+   "fieldtype": "Int",
+   "label": "Procedures Cases Per Month"
+  },
+  {
+   "fieldname": "ivl_experience",
+   "fieldtype": "Select",
+   "label": "IVL Experience",
+   "options": "None\nBeginner\nExperienced\nExpert"
+  },
+  {
+   "fieldname": "ivus_experience",
+   "fieldtype": "Select",
+   "label": "IVUS Experience",
+   "options": "None\nBeginner\nExperienced\nExpert"
+  },
+  {
+   "fieldname": "physiology_experience",
+   "fieldtype": "Select",
+   "label": "Physiology Experience",
+   "options": "None\nBeginner\nExperienced\nExpert"
+  },
+  {
+   "fieldname": "key_product_interest",
+   "fieldtype": "Select",
+   "label": "Key Product Interest",
+   "options": "IVL\nIVUS\nPhysiology\nRenal Denervation\nOther"
+  },
+  {
+   "fieldname": "current_brand_preference",
+   "fieldtype": "Data",
+   "label": "Current Brand Preference"
+  },
+  {
+   "fieldname": "main_clinical_need",
+   "fieldtype": "Small Text",
+   "label": "Main Clinical Need"
+  },
+  {
+   "fieldname": "main_objection",
+   "fieldtype": "Small Text",
+   "label": "Main Objection"
+  },
+  {
+   "fieldname": "relationship_level",
+   "fieldtype": "Select",
+   "label": "Relationship Level",
+   "options": "Champion\nPositive\nNeutral\nNegative\nUnknown",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_tracking",
+   "fieldtype": "Section Break",
+   "label": "Tracking"
+  },
+  {
+   "fieldname": "last_visit",
+   "fieldtype": "Date",
+   "label": "Last Visit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "next_followup",
+   "fieldtype": "Date",
+   "label": "Next Followup",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Text Editor",
+   "label": "Notes"
+  }
+ ],
+ "field_order": [
+  "naming_series",
+  "sb_doctor",
+  "doctor_name",
+  "specialty",
+  "subspecialty",
+  "hospital_account",
+  "city",
+  "owner_rep",
+  "sb_contact",
+  "mobile",
+  "email",
+  "role_position",
+  "sb_clinical_profile",
+  "decision_influence",
+  "procedures_cases_per_month",
+  "ivl_experience",
+  "ivus_experience",
+  "physiology_experience",
+  "key_product_interest",
+  "current_brand_preference",
+  "main_clinical_need",
+  "main_objection",
+  "relationship_level",
+  "sb_tracking",
+  "last_visit",
+  "next_followup",
+  "notes"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Sales Rep",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 0,
+   "print": 1,
+   "email": 1,
+   "share": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "row_format": "Dynamic",
+ "autoname": "naming_series:",
+ "naming_rule": "By \"Naming Series\" field",
+ "title_field": "doctor_name",
+ "show_title_field_in_link": 1
+}

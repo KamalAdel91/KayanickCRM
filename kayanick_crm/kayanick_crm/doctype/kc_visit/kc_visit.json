@@ -1,0 +1,252 @@
+{
+ "doctype": "DocType",
+ "name": "KC Visit",
+ "module": "KAYANICK CRM",
+ "custom": 0,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "VISIT-.YYYY.-.####",
+   "reqd": 1,
+   "default": "VISIT-.YYYY.-.####",
+   "hidden": 1
+  },
+  {
+   "fieldname": "sb_visit",
+   "fieldtype": "Section Break",
+   "label": "Visit"
+  },
+  {
+   "fieldname": "visit_date",
+   "fieldtype": "Datetime",
+   "label": "Visit Date",
+   "reqd": 1,
+   "default": "Now",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sales_rep",
+   "fieldtype": "Link",
+   "label": "Sales Rep",
+   "options": "User",
+   "default": "__user",
+   "reqd": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "hospital_account",
+   "fieldtype": "Link",
+   "label": "Hospital Account",
+   "options": "KC Account",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "doctor",
+   "fieldtype": "Link",
+   "label": "Doctor",
+   "options": "KC Doctor",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "visit_type",
+   "fieldtype": "Select",
+   "label": "Visit Type",
+   "options": "Face to Face\nPhone\nWhatsApp\nEmail\nOnline Meeting\nConference"
+  },
+  {
+   "fieldname": "doctor_interest_level",
+   "fieldtype": "Select",
+   "label": "Doctor Interest Level",
+   "options": "Very Positive\nPositive\nNeutral\nNegative\nNo Decision\nNot Available",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sb_discussion",
+   "fieldtype": "Section Break",
+   "label": "Discussion"
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Small Text",
+   "label": "Purpose"
+  },
+  {
+   "fieldname": "products_discussed",
+   "fieldtype": "Small Text",
+   "label": "Products Discussed"
+  },
+  {
+   "fieldname": "clinical_need_case_discussion",
+   "fieldtype": "Text Editor",
+   "label": "Clinical Need Case Discussion"
+  },
+  {
+   "fieldname": "what_did_we_learn",
+   "fieldtype": "Text Editor",
+   "label": "What Did We Learn"
+  },
+  {
+   "fieldname": "competitor_mentioned",
+   "fieldtype": "Data",
+   "label": "Competitor Mentioned"
+  },
+  {
+   "fieldname": "objections_concerns",
+   "fieldtype": "Small Text",
+   "label": "Objections Concerns"
+  },
+  {
+   "fieldname": "commercial_discussion",
+   "fieldtype": "Small Text",
+   "label": "Commercial Discussion"
+  },
+  {
+   "fieldname": "decision_outcome",
+   "fieldtype": "Small Text",
+   "label": "Decision Outcome"
+  },
+  {
+   "fieldname": "commitment_from_doctor",
+   "fieldtype": "Small Text",
+   "label": "Commitment From Doctor"
+  },
+  {
+   "fieldname": "samples_demo_needed",
+   "fieldtype": "Check",
+   "label": "Samples Demo Needed"
+  },
+  {
+   "fieldname": "sb_next_step",
+   "fieldtype": "Section Break",
+   "label": "Next Step"
+  },
+  {
+   "fieldname": "next_action",
+   "fieldtype": "Small Text",
+   "label": "Next Action"
+  },
+  {
+   "fieldname": "next_action_owner",
+   "fieldtype": "Link",
+   "label": "Next Action Owner",
+   "options": "User"
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date"
+  },
+  {
+   "fieldname": "next_visit_date",
+   "fieldtype": "Date",
+   "label": "Next Visit Date"
+  },
+  {
+   "fieldname": "follow_up_status",
+   "fieldtype": "Select",
+   "label": "Follow Up Status",
+   "options": "Open\nIn Progress\nWaiting Customer\nCompleted\nCancelled"
+  },
+  {
+   "fieldname": "visit_notes",
+   "fieldtype": "Text Editor",
+   "label": "Visit Notes"
+  },
+  {
+   "fieldname": "sb_check_in",
+   "fieldtype": "Section Break",
+   "label": "Check-in"
+  },
+  {
+   "fieldname": "geolocation",
+   "fieldtype": "Geolocation",
+   "label": "Geolocation"
+  },
+  {
+   "fieldname": "check_in_time",
+   "fieldtype": "Datetime",
+   "label": "Check In Time",
+   "read_only": 1
+  }
+ ],
+ "field_order": [
+  "naming_series",
+  "sb_visit",
+  "visit_date",
+  "sales_rep",
+  "hospital_account",
+  "doctor",
+  "visit_type",
+  "doctor_interest_level",
+  "sb_discussion",
+  "purpose",
+  "products_discussed",
+  "clinical_need_case_discussion",
+  "what_did_we_learn",
+  "competitor_mentioned",
+  "objections_concerns",
+  "commercial_discussion",
+  "decision_outcome",
+  "commitment_from_doctor",
+  "samples_demo_needed",
+  "sb_next_step",
+  "next_action",
+  "next_action_owner",
+  "due_date",
+  "next_visit_date",
+  "follow_up_status",
+  "visit_notes",
+  "sb_check_in",
+  "geolocation",
+  "check_in_time"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Sales Rep",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 0,
+   "print": 1,
+   "email": 1,
+   "share": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "row_format": "Dynamic",
+ "autoname": "naming_series:",
+ "naming_rule": "By \"Naming Series\" field"
+}

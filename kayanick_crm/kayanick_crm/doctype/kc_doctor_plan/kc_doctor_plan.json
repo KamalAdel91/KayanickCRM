@@ -1,0 +1,189 @@
+{
+ "doctype": "DocType",
+ "name": "KC Doctor Plan",
+ "module": "KAYANICK CRM",
+ "custom": 0,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "PLAN-.####",
+   "reqd": 1,
+   "default": "PLAN-.####",
+   "hidden": 1
+  },
+  {
+   "fieldname": "sb_plan",
+   "fieldtype": "Section Break",
+   "label": "Plan"
+  },
+  {
+   "fieldname": "doctor",
+   "fieldtype": "Link",
+   "label": "Doctor",
+   "options": "KC Doctor",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "hospital_account",
+   "fieldtype": "Link",
+   "label": "Hospital Account",
+   "options": "KC Account",
+   "fetch_from": "doctor.hospital_account",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sales_rep",
+   "fieldtype": "Link",
+   "label": "Sales Rep",
+   "options": "User",
+   "default": "__user",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "influence_level",
+   "fieldtype": "Select",
+   "label": "Influence Level",
+   "options": "High\nMedium\nLow"
+  },
+  {
+   "fieldname": "current_relationship",
+   "fieldtype": "Select",
+   "label": "Current Relationship",
+   "options": "Champion\nPositive\nNeutral\nNegative\nUnknown"
+  },
+  {
+   "fieldname": "monthly_case_potential",
+   "fieldtype": "Int",
+   "label": "Monthly Case Potential"
+  },
+  {
+   "fieldname": "main_product",
+   "fieldtype": "Data",
+   "label": "Main Product"
+  },
+  {
+   "fieldname": "current_brand",
+   "fieldtype": "Data",
+   "label": "Current Brand"
+  },
+  {
+   "fieldname": "clinical_need",
+   "fieldtype": "Small Text",
+   "label": "Clinical Need"
+  },
+  {
+   "fieldname": "main_objection",
+   "fieldtype": "Small Text",
+   "label": "Main Objection"
+  },
+  {
+   "fieldname": "champion_potential",
+   "fieldtype": "Select",
+   "label": "Champion Potential",
+   "options": "Yes\nNo\nMaybe"
+  },
+  {
+   "fieldname": "sb_next_steps",
+   "fieldtype": "Section Break",
+   "label": "Next Steps"
+  },
+  {
+   "fieldname": "next_objective",
+   "fieldtype": "Small Text",
+   "label": "Next Objective"
+  },
+  {
+   "fieldname": "next_action",
+   "fieldtype": "Small Text",
+   "label": "Next Action"
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Open\nIn Progress\nCompleted",
+   "default": "Open",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  }
+ ],
+ "field_order": [
+  "naming_series",
+  "sb_plan",
+  "doctor",
+  "hospital_account",
+  "sales_rep",
+  "influence_level",
+  "current_relationship",
+  "monthly_case_potential",
+  "main_product",
+  "current_brand",
+  "clinical_need",
+  "main_objection",
+  "champion_potential",
+  "sb_next_steps",
+  "next_objective",
+  "next_action",
+  "due_date",
+  "status",
+  "notes"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Sales Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1,
+   "print": 1,
+   "email": 1,
+   "share": 1
+  },
+  {
+   "role": "Sales Rep",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 0,
+   "report": 1,
+   "export": 0,
+   "print": 1,
+   "email": 1,
+   "share": 0
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "row_format": "Dynamic",
+ "autoname": "naming_series:",
+ "naming_rule": "By \"Naming Series\" field"
+}
