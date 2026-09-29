@@ -1,8 +1,8 @@
 {
   "name": "Kayanick CRM",
   "short_name": "Kayanick",
-  "start_url": "/kayanick",
-  "scope": "/kayanick",
+  "start_url": "/KayanickCRM",
+  "scope": "/KayanickCRM",
   "display": "standalone",
   "background_color": "#f9fafb",
   "theme_color": "#1d4ed8",

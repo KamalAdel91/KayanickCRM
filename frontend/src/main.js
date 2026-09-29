@@ -9,7 +9,7 @@ import Cases from "./views/CasesView.vue"
 import NewCase from "./views/NewCaseView.vue"
 
 const router = createRouter({
-  history: createWebHistory("/kayanick"),
+  history: createWebHistory("/KayanickCRM"),
   routes: [
     { path: "/", name: "today", component: Today },
     { path: "/visit", name: "visit", component: NewVisit },

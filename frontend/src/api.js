@@ -29,7 +29,7 @@ export async function call(method, args = {}, { post = false } = {}) {
     throw new Error("No connection")
   }
   if (res.status === 401) {
-    window.location.href = "/login?redirect-to=/kayanick"
+    window.location.href = "/login?redirect-to=/KayanickCRM"
     throw new Error("Session expired")
   }
   let body = {}

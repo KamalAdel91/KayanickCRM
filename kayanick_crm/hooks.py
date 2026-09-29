@@ -285,5 +285,7 @@ fixtures = [
 ]
 
 website_route_rules = [
+    {"from_route": "/KayanickCRM", "to_route": "kayanick"},
+    {"from_route": "/KayanickCRM/<path:app_path>", "to_route": "kayanick"},
     {"from_route": "/kayanick/<path:app_path>", "to_route": "kayanick"},
 ]
