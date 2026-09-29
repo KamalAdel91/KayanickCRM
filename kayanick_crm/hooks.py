@@ -260,13 +260,16 @@ app_license = "mit"
 # --- kayanick generated (do not edit by hand) ---
 permission_query_conditions = {
     "KC Visit": "kayanick_crm.kayanick_crm.doctype.kc_visit.kc_visit.get_permission_query_conditions",
+    "KC Case": "kayanick_crm.kayanick_crm.doctype.kc_case.kc_case.get_permission_query_conditions",
 }
 
 has_permission = {
     "KC Visit": "kayanick_crm.kayanick_crm.doctype.kc_visit.kc_visit.has_permission",
+    "KC Case": "kayanick_crm.kayanick_crm.doctype.kc_case.kc_case.has_permission",
 }
 
 fixtures = [
+    {"dt": "Custom Field", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Role", "filters": [["name", "in", ["Sales Rep", "Sales Manager"]]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Dashboard Chart", "filters": [["module", "=", "KAYANICK CRM"]]},

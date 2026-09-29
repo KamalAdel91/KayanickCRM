@@ -4,7 +4,7 @@ import { useRoute } from "vue-router"
 import Icon from "./components/Icon.vue"
 
 const route = useRoute()
-const showNav = computed(() => route.name !== "visit")
+const showNav = computed(() => !["visit", "case"].includes(route.name))
 </script>
 
 <template>
@@ -19,7 +19,10 @@ const showNav = computed(() => route.name !== "visit")
         </router-link>
         <router-link to="/visit" class="tab">
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm shadow-brand-600/30"><Icon name="plus" :size="17" /></span>
-          <span class="text-gray-900">New visit</span>
+          <span class="text-gray-900">Visit</span>
+        </router-link>
+        <router-link to="/cases" class="tab" :class="{ 'tab-on': route.name === 'cases' }">
+          <Icon name="cart" :size="21" /><span>Cases</span>
         </router-link>
         <router-link to="/search" class="tab" :class="{ 'tab-on': route.name === 'search' }">
           <Icon name="search" :size="21" /><span>Search</span>
