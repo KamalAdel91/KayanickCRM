@@ -79,7 +79,7 @@ def search(text=""):
     text = (text or "").strip()[:60]
     like = "%" + text + "%"
     hosp = dict(fields=["name", "area", "hospital_type", "last_visit", "next_visit"],
-                order_by="modified desc", limit_page_length=30)
+                order_by="name asc", limit_page_length=200)
     doc = dict(fields=["name", "doctor_name", "hospital", "relationship_level", "last_visit"],
                order_by="modified desc", limit_page_length=30)
     if text:

@@ -1,52 +1,64 @@
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from "vue"
+import { ref, reactive, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { initials, localToday, outcomeBadge, levelBadge, chipOn, dot } from "../ui"
+import { localToday, outcomeBadge, levelBadge, chipOn, dot } from "../ui"
 import Icon from "../components/Icon.vue"
 import AttachPicker from "../components/AttachPicker.vue"
+import PickerSheet from "../components/PickerSheet.vue"
+import PickField from "../components/PickField.vue"
 import { uploadFiles } from "../upload"
 
 const route = useRoute()
 const router = useRouter()
 const opts = ref({ purposes: [], outcomes: [], levels: [], products: [] })
 const f = reactive({
-  hospital: "", doctor: "", visit_date: localToday(), purpose: "", outcome: "", level: "",
+  hospital: "", hospitalSub: "", doctor: null, visit_date: localToday(), purpose: "", outcome: "", level: "",
   products: [], order: false, notes: "", next_action: "", next_visit_date: "",
 })
 const levelTouched = ref(false)
-const q = ref("")
-const hits = ref([])
 const doctors = ref([])
+const sheet = ref("")
 const geo = ref(null)
 const geoState = ref("locating")
 const saving = ref(false)
 const attachments = ref([])
 const error = ref("")
-let timer = null
 
 const geoLabel = computed(() => (geo.value ? "Location on" : geoState.value === "locating" ? "Locating…" : "No location"))
+const hospitalOpen = computed({ get: () => sheet.value === "hospital", set: (v) => (sheet.value = v ? "hospital" : "") })
+const doctorOpen = computed({ get: () => sheet.value === "doctor", set: (v) => (sheet.value = v ? "doctor" : "") })
 
+async function fetchHospitals(text) {
+  const r = await call("kayanick_crm.mobile.search", { text })
+  return r.hospitals.map((h) => ({ value: h.name, label: h.name, sub: [h.area, h.hospital_type].filter(Boolean).join(" · "), raw: h }))
+}
+async function fetchDoctors(text) {
+  const t = (text || "").toLowerCase()
+  return doctors.value
+    .filter((d) => !t || d.doctor_name.toLowerCase().includes(t))
+    .map((d) => ({ value: d.name, label: d.doctor_name, sub: d.relationship_level || "", raw: d }))
+}
 async function loadDoctors() {
   doctors.value = []
   if (!f.hospital) return
   try { doctors.value = await call("kayanick_crm.mobile.get_doctors", { hospital: f.hospital }) }
   catch (e) { error.value = e.message }
 }
-function pickHospital(name) {
-  f.hospital = name
-  f.doctor = ""
-  hits.value = []
-  q.value = ""
+function pickHospital(r) {
+  f.hospital = r.value
+  f.hospitalSub = r.sub
+  f.doctor = null
   loadDoctors()
 }
 function clearHospital() {
   f.hospital = ""
-  f.doctor = ""
+  f.hospitalSub = ""
+  f.doctor = null
   doctors.value = []
 }
 function pickDoctor(d) {
-  f.doctor = d ? d.name : ""
+  f.doctor = d || null
   if (d && d.relationship_level && !levelTouched.value) f.level = d.relationship_level
 }
 function pickLevel(l) {
@@ -58,14 +70,6 @@ function toggleProduct(p) {
   if (i >= 0) f.products.splice(i, 1)
   else f.products.push(p)
 }
-watch(q, (v) => {
-  clearTimeout(timer)
-  if (!v || v.length < 2) { hits.value = []; return }
-  timer = setTimeout(async () => {
-    try { hits.value = (await call("kayanick_crm.mobile.search", { text: v })).hospitals }
-    catch (e) { error.value = e.message }
-  }, 300)
-})
 function back() {
   if (window.history.length > 1) router.back()
   else router.push("/")
@@ -90,7 +94,7 @@ async function save() {
   error.value = ""
   if (!f.hospital) { error.value = "Choose a hospital first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   const payload = {
-    hospital: f.hospital, doctor: f.doctor, visit_date: f.visit_date,
+    hospital: f.hospital, doctor: f.doctor ? f.doctor.name : "", visit_date: f.visit_date,
     visit_purpose: f.purpose, visit_outcome: f.outcome, relationship_level: f.level,
     products: f.products, order_expected: f.order, notes: f.notes,
     next_action: f.next_action, next_visit_date: f.next_visit_date,
@@ -136,38 +140,15 @@ async function save() {
         <div class="card space-y-4 p-4">
           <div>
             <label class="label">Hospital</label>
-            <div v-if="f.hospital" class="flex items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
-              <span class="avatar h-8 w-8 bg-white text-brand-700">{{ initials(f.hospital) }}</span>
-              <span class="flex-1 truncate font-medium" dir="auto">{{ f.hospital }}</span>
-              <button type="button" class="text-sm font-medium text-brand-700" @click="clearHospital">Change</button>
-            </div>
-            <template v-else>
-              <div class="relative">
-                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icon name="search" :size="16" /></span>
-                <input v-model="q" type="search" placeholder="Type at least 2 letters" class="input pl-9" dir="auto" />
-              </div>
-              <div v-if="hits.length" class="card mt-2 divide-y divide-gray-100 overflow-hidden">
-                <button v-for="h in hits" :key="h.name" type="button" class="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50" @click="pickHospital(h.name)">
-                  <span class="avatar h-8 w-8">{{ initials(h.name) }}</span>
-                  <span class="flex-1 truncate" dir="auto">{{ h.name }}</span>
-                  <span class="text-xs text-gray-400">{{ h.area }}</span>
-                </button>
-              </div>
-            </template>
+            <PickField :value="f.hospital" :sub="f.hospitalSub" icon="building" placeholder="Choose hospital"
+              @open="sheet = 'hospital'" @clear="clearHospital" />
           </div>
-
           <div v-if="f.hospital">
             <label class="label">Doctor</label>
             <p v-if="!doctors.length" class="text-sm text-gray-400">No doctors on file for this hospital</p>
-            <div v-else class="flex flex-wrap gap-2">
-              <button type="button" class="chip" :class="{ 'chip-on': !f.doctor }" @click="pickDoctor(null)">None</button>
-              <button v-for="d in doctors" :key="d.name" type="button" class="chip" :class="{ 'chip-on': f.doctor === d.name }"
-                dir="auto" @click="pickDoctor(d)">
-                <span class="h-2 w-2 rounded-full" :class="dot(levelBadge(d.relationship_level))"></span>{{ d.doctor_name }}
-              </button>
-            </div>
+            <PickField v-else :value="f.doctor ? f.doctor.doctor_name : ''" :sub="f.doctor ? f.doctor.relationship_level : ''"
+              icon="user" :placeholder="'Choose doctor (' + doctors.length + ')'" @open="sheet = 'doctor'" @clear="pickDoctor(null)" />
           </div>
-
           <div>
             <label class="label">Date</label>
             <input v-model="f.visit_date" type="date" class="input" required />
@@ -251,5 +232,10 @@ async function save() {
         </button>
       </div>
     </div>
+
+    <PickerSheet v-model:open="hospitalOpen" title="Choose hospital" placeholder="Search hospitals or areas"
+      :fetcher="fetchHospitals" @pick="pickHospital" />
+    <PickerSheet v-model:open="doctorOpen" title="Choose doctor" placeholder="Search doctors"
+      :fetcher="fetchDoctors" @pick="(r) => pickDoctor(r.raw)" />
   </div>
 </template>

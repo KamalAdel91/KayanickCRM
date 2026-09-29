@@ -1,50 +1,40 @@
 <script setup>
-import { ref, reactive, computed, watch } from "vue"
+import { ref, reactive, computed } from "vue"
 import { useRouter } from "vue-router"
 import { call } from "../api"
-import { initials, localToday } from "../ui"
+import { localToday } from "../ui"
 import Icon from "../components/Icon.vue"
 import AttachPicker from "../components/AttachPicker.vue"
+import PickerSheet from "../components/PickerSheet.vue"
+import PickField from "../components/PickField.vue"
 import { uploadFiles } from "../upload"
 
 const router = useRouter()
 const f = reactive({ customer: null, case_date: localToday(), notes: "", items: [] })
-const cq = ref("")
-const customers = ref([])
-const iq = ref("")
-const itemHits = ref([])
+const sheet = ref("")
 const saving = ref(false)
 const attachments = ref([])
 const error = ref("")
-let ct = null
-let it = null
 
 const totalQty = computed(() => f.items.reduce((s, i) => s + (Number(i.qty) || 0), 0))
 const canSave = computed(() => f.customer && f.items.length && !saving.value)
+const selectedCodes = computed(() => f.items.map((i) => i.item_code))
+const customerOpen = computed({ get: () => sheet.value === "customer", set: (v) => (sheet.value = v ? "customer" : "") })
+const itemOpen = computed({ get: () => sheet.value === "item", set: (v) => (sheet.value = v ? "item" : "") })
 
-watch(cq, (v) => {
-  clearTimeout(ct)
-  ct = setTimeout(async () => {
-    try { customers.value = await call("kayanick_crm.case_api.search_customers", { text: v || "" }) }
-    catch (e) { error.value = e.message }
-  }, 250)
-}, { immediate: true })
-watch(iq, (v) => {
-  clearTimeout(it)
-  if (!v || v.length < 2) { itemHits.value = []; return }
-  it = setTimeout(async () => {
-    try { itemHits.value = await call("kayanick_crm.case_api.search_items", { text: v }) }
-    catch (e) { error.value = e.message }
-  }, 250)
-})
-
-function pickCustomer(c) { f.customer = c; cq.value = "" }
-function addItem(i) {
-  const row = f.items.find((r) => r.item_code === i.name)
+async function fetchCustomers(text) {
+  const r = await call("kayanick_crm.case_api.search_customers", { text })
+  return r.map((c) => ({ value: c.name, label: c.customer_name, sub: [c.name !== c.customer_name ? c.name : "", c.territory].filter(Boolean).join(" · "), raw: c }))
+}
+async function fetchItems(text) {
+  const r = await call("kayanick_crm.case_api.search_items", { text })
+  return r.map((i) => ({ value: i.name, label: i.item_name, sub: [i.name !== i.item_name ? i.name : "", i.stock_uom].filter(Boolean).join(" · "), raw: i }))
+}
+function addItem(r) {
+  const i = r.raw
+  const row = f.items.find((x) => x.item_code === i.name)
   if (row) row.qty = Number(row.qty) + 1
   else f.items.push({ item_code: i.name, item_name: i.item_name, uom: i.stock_uom, qty: 1 })
-  iq.value = ""
-  itemHits.value = []
 }
 function step(row, d) { row.qty = Math.max(1, (Number(row.qty) || 0) + d) }
 function remove(row) { f.items.splice(f.items.indexOf(row), 1) }
@@ -90,28 +80,8 @@ async function save() {
       <section>
         <p class="section-label"><Icon name="building" :size="14" />Customer</p>
         <div class="card space-y-4 p-4">
-          <div v-if="f.customer" class="flex items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
-            <span class="avatar h-8 w-8 bg-white text-brand-700">{{ initials(f.customer.customer_name) }}</span>
-            <span class="min-w-0 flex-1">
-              <span class="block truncate font-medium" dir="auto">{{ f.customer.customer_name }}</span>
-              <span class="block truncate text-xs text-gray-500">{{ f.customer.name }}</span>
-            </span>
-            <button type="button" class="text-sm font-medium text-brand-700" @click="f.customer = null">Change</button>
-          </div>
-          <template v-else>
-            <div class="relative">
-              <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icon name="search" :size="16" /></span>
-              <input v-model="cq" type="search" placeholder="Search customers" class="input pl-9" dir="auto" />
-            </div>
-            <div v-if="customers.length" class="card max-h-72 divide-y divide-gray-100 overflow-y-auto">
-              <button v-for="c in customers" :key="c.name" type="button" class="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50" @click="pickCustomer(c)">
-                <span class="avatar h-8 w-8">{{ initials(c.customer_name) }}</span>
-                <span class="flex-1 truncate" dir="auto">{{ c.customer_name }}</span>
-                <span class="text-xs text-gray-400">{{ c.territory }}</span>
-              </button>
-            </div>
-            <p v-else class="text-sm text-gray-400">No customers found</p>
-          </template>
+          <PickField :value="f.customer ? f.customer.customer_name : ''" :sub="f.customer ? f.customer.name : ''" icon="building"
+            placeholder="Choose customer" @open="sheet = 'customer'" @clear="f.customer = null" />
           <div>
             <label class="label">Case date</label>
             <input v-model="f.case_date" type="date" class="input" />
@@ -122,20 +92,7 @@ async function save() {
       <section>
         <p class="section-label"><Icon name="clipboard" :size="14" />Items <span v-if="f.items.length" class="text-gray-400">· {{ f.items.length }} lines · {{ totalQty }} pcs</span></p>
         <div class="card space-y-3 p-4">
-          <div class="relative">
-            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icon name="plus" :size="16" /></span>
-            <input v-model="iq" type="search" placeholder="Add item (type 2+ letters)" class="input pl-9" dir="auto" />
-          </div>
-          <div v-if="itemHits.length" class="card max-h-64 divide-y divide-gray-100 overflow-y-auto">
-            <button v-for="i in itemHits" :key="i.name" type="button" class="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50" @click="addItem(i)">
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-medium" dir="auto">{{ i.item_name }}</span>
-                <span class="block truncate text-xs text-gray-400">{{ i.name }}</span>
-              </span>
-              <Icon name="plus" :size="16" class="text-brand-600" />
-            </button>
-          </div>
-
+          <button type="button" class="btn btn-subtle w-full" @click="sheet = 'item'"><Icon name="plus" :size="16" />Add items</button>
           <p v-if="!f.items.length" class="py-2 text-center text-sm text-gray-400">No items yet</p>
           <div v-else class="divide-y divide-gray-100 rounded-lg border border-gray-200">
             <div v-for="row in f.items" :key="row.item_code" class="flex items-center gap-3 px-3 py-2.5">
@@ -174,5 +131,10 @@ async function save() {
         </button>
       </div>
     </div>
+
+    <PickerSheet v-model:open="customerOpen" title="Choose customer" placeholder="Search customers"
+      :fetcher="fetchCustomers" @pick="(r) => (f.customer = r.raw)" />
+    <PickerSheet v-model:open="itemOpen" title="Add items" placeholder="Search items" multi :selected="selectedCodes"
+      :fetcher="fetchItems" @pick="addItem" />
   </div>
 </template>

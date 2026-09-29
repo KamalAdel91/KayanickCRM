@@ -26,7 +26,7 @@ def search_customers(text=""):
     _check_role()
     text = (text or "").strip()[:60]
     kw = dict(filters={"disabled": 0}, fields=["name", "customer_name", "territory"],
-              order_by="customer_name asc", limit_page_length=30)
+              order_by="customer_name asc", limit_page_length=100)
     if text:
         kw["or_filters"] = [["customer_name", "like", "%" + text + "%"], ["name", "like", "%" + text + "%"]]
     return frappe.get_all("Customer", **kw)
@@ -37,7 +37,7 @@ def search_items(text=""):
     _check_role()
     text = (text or "").strip()[:60]
     kw = dict(filters={"disabled": 0, "is_sales_item": 1, "has_variants": 0},
-              fields=["name", "item_name", "stock_uom"], order_by="item_name asc", limit_page_length=30)
+              fields=["name", "item_name", "stock_uom"], order_by="item_name asc", limit_page_length=100)
     if text:
         kw["or_filters"] = [["item_name", "like", "%" + text + "%"], ["name", "like", "%" + text + "%"]]
     return frappe.get_all("Item", **kw)
