@@ -9,8 +9,9 @@ const props = defineProps({
   multi: Boolean,
   selected: { type: Array, default: () => [] },
   placeholder: { type: String, default: "Search" },
+  createLabel: String,
 })
-const emit = defineEmits(["update:open", "pick"])
+const emit = defineEmits(["update:open", "pick", "create"])
 const q = ref("")
 const rows = ref([])
 const loading = ref(false)
@@ -46,6 +47,10 @@ function pick(r) {
   if (!props.multi) emit("update:open", false)
 }
 function close() { emit("update:open", false) }
+function create() {
+  emit("create", q.value.trim())
+  emit("update:open", false)
+}
 </script>
 
 <template>
@@ -81,6 +86,9 @@ function close() { emit("update:open", false) }
             </span>
             <span v-if="selected.includes(r.value)" class="badge badge-blue"><Icon name="check" :size="12" />Added</span>
             <Icon v-else :name="multi ? 'plus' : 'chevron-right'" :size="16" class="text-gray-300" />
+          </button>
+          <button v-if="createLabel && q.trim()" type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left text-brand-700 active:bg-gray-50" @click="create">
+            <Icon name="plus" :size="16" /><span class="truncate font-medium" dir="auto">{{ createLabel }} “{{ q.trim() }}”</span>
           </button>
         </div>
       </div>

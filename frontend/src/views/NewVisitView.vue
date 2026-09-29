@@ -49,7 +49,7 @@ function pickHospital(r) {
   f.hospital = r.value
   f.hospitalSub = r.sub
   f.doctor = null
-  loadDoctors()
+  loadDoctors().then(() => { if (!f.doctor) sheet.value = "doctor" })
 }
 function clearHospital() {
   f.hospital = ""
@@ -60,6 +60,18 @@ function clearHospital() {
 function pickDoctor(d) {
   f.doctor = d || null
   if (d && d.relationship_level && !levelTouched.value) f.level = d.relationship_level
+}
+function openDoctors() {
+  if (!f.hospital) { sheet.value = "hospital"; return }
+  sheet.value = "doctor"
+}
+async function addDoctor(name) {
+  if (!name) return
+  try {
+    const d = await call("kayanick_crm.mobile.add_doctor", { hospital: f.hospital, doctor_name: name }, { post: true })
+    doctors.value.push(d)
+    pickDoctor(d)
+  } catch (e) { error.value = e.message }
 }
 function pickLevel(l) {
   levelTouched.value = true
@@ -93,6 +105,7 @@ onMounted(async () => {
 async function save() {
   error.value = ""
   if (!f.hospital) { error.value = "Choose a hospital first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  if (!f.doctor) { error.value = "Choose a doctor"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   const payload = {
     hospital: f.hospital, doctor: f.doctor ? f.doctor.name : "", visit_date: f.visit_date,
     visit_purpose: f.purpose, visit_outcome: f.outcome, relationship_level: f.level,
@@ -143,11 +156,11 @@ async function save() {
             <PickField :value="f.hospital" :sub="f.hospitalSub" icon="building" placeholder="Choose hospital"
               @open="sheet = 'hospital'" @clear="clearHospital" />
           </div>
-          <div v-if="f.hospital">
+          <div>
             <label class="label">Doctor</label>
-            <p v-if="!doctors.length" class="text-sm text-gray-400">No doctors on file for this hospital</p>
-            <PickField v-else :value="f.doctor ? f.doctor.doctor_name : ''" :sub="f.doctor ? f.doctor.relationship_level : ''"
-              icon="user" :placeholder="'Choose doctor (' + doctors.length + ')'" @open="sheet = 'doctor'" @clear="pickDoctor(null)" />
+            <PickField :value="f.doctor ? f.doctor.doctor_name : ''" :sub="f.doctor ? f.doctor.relationship_level : ''" icon="user"
+              :placeholder="f.hospital ? 'Choose doctor (' + doctors.length + ')' : 'Choose the hospital first'"
+              @open="openDoctors" @clear="pickDoctor(null)" />
           </div>
           <div>
             <label class="label">Date</label>
@@ -236,6 +249,6 @@ async function save() {
     <PickerSheet v-model:open="hospitalOpen" title="Choose hospital" placeholder="Search hospitals or areas"
       :fetcher="fetchHospitals" @pick="pickHospital" />
     <PickerSheet v-model:open="doctorOpen" title="Choose doctor" placeholder="Search doctors"
-      :fetcher="fetchDoctors" @pick="(r) => pickDoctor(r.raw)" />
+      :fetcher="fetchDoctors" create-label="Add new doctor" @pick="(r) => pickDoctor(r.raw)" @create="addDoctor" />
   </div>
 </template>

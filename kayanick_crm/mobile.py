@@ -106,6 +106,8 @@ def create_visit(payload):
         frappe.throw(_("Hospital is required"))
     if not frappe.db.exists("KC Hospital", hospital):
         frappe.throw(_("Hospital {0} not found").format(hospital))
+    if not clean.get("doctor"):
+        frappe.throw(_("Doctor is required"))
     clean.setdefault("visit_date", today())
 
     visit = frappe.get_doc({
@@ -120,3 +122,18 @@ def create_visit(payload):
             visit.append("products", {"product": product})
     visit.insert()
     return {"name": visit.name}
+
+
+@frappe.whitelist(methods=["POST"])
+def add_doctor(hospital, doctor_name):
+    doctor_name = (doctor_name or "").strip()
+    if not doctor_name:
+        frappe.throw(_("Doctor name is required"))
+    if not frappe.db.exists("KC Hospital", hospital):
+        frappe.throw(_("Hospital {0} not found").format(hospital))
+    existing = frappe.db.get_value("KC Doctor", {"hospital": hospital, "doctor_name": doctor_name},
+                                   ["name", "doctor_name", "relationship_level"], as_dict=True)
+    if existing:
+        return existing
+    doc = frappe.get_doc({"doctype": "KC Doctor", "doctor_name": doctor_name, "hospital": hospital}).insert()
+    return {"name": doc.name, "doctor_name": doc.doctor_name, "relationship_level": doc.relationship_level}
