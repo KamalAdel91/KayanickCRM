@@ -1,0 +1,20 @@
+{
+ "doctype": "Report",
+ "name": "Sales Rep Activity",
+ "report_name": "Sales Rep Activity",
+ "ref_doctype": "KC Visit",
+ "report_type": "Script Report",
+ "is_standard": "Yes",
+ "module": "KAYANICK CRM",
+ "disabled": 0,
+ "add_total_row": 1,
+ "prepared_report": 0,
+ "roles": [
+  {
+   "role": "Sales Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ]
+}

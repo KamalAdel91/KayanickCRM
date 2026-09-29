@@ -14,6 +14,9 @@ class KCCase(Document):
             self.company = default_company()
 
     def validate(self):
+        before = None if self.is_new() else self.get_doc_before_save()
+        if before and before.sales_order and "System Manager" not in frappe.get_roles():
+            frappe.throw(_("This case is frozen: Sales Order {0} was already created").format(before.sales_order))
         if not self.items:
             frappe.throw(_("Add at least one item"))
         for row in self.items:

@@ -64,6 +64,15 @@ def get_cases():
     return rows
 
 
+def _default_warehouse(item_code, company):
+    wh = frappe.db.get_value("Item Default", {"parent": item_code, "company": company}, "default_warehouse")
+    if not wh:
+        wh = frappe.db.get_single_value("Stock Settings", "default_warehouse")
+        if wh and frappe.db.get_value("Warehouse", wh, "company") != company:
+            wh = None
+    return wh
+
+
 @frappe.whitelist(methods=["POST"])
 def make_sales_order(case):
     doc = frappe.get_doc("KC Case", case)
@@ -71,6 +80,15 @@ def make_sales_order(case):
     if doc.sales_order and frappe.db.exists("Sales Order", doc.sales_order):
         return doc.sales_order
     delivery = max(getdate(doc.case_date), getdate(today()))
+    rows, missing = [], []
+    for r in doc.items:
+        wh = _default_warehouse(r.item_code, doc.company)
+        if not wh and frappe.db.get_value("Item", r.item_code, "is_stock_item"):
+            missing.append(r.item_code)
+        rows.append({"item_code": r.item_code, "qty": r.qty, "delivery_date": delivery, "warehouse": wh})
+    if missing:
+        frappe.throw(_("No default warehouse for {0} in {1}. Please ask the office to set it.").format(
+            ", ".join(missing), doc.company))
     so = frappe.get_doc({
         "doctype": "Sales Order",
         "customer": doc.customer,
@@ -78,10 +96,18 @@ def make_sales_order(case):
         "transaction_date": today(),
         "delivery_date": delivery,
         "kc_case": doc.name,
-        "items": [{"item_code": r.item_code, "qty": r.qty, "delivery_date": delivery} for r in doc.items],
+        "items": rows,
     })
     so.flags.ignore_permissions = True
-    so.insert()
+    user = frappe.session.user
+    # ERPNext checks the session user while pricing items; the rep has no ERPNext roles,
+    # so the draft is built as Administrator after the case permission check above.
+    frappe.set_user("Administrator")
+    try:
+        so.insert()
+        frappe.db.set_value("Sales Order", so.name, "owner", user, update_modified=False)
+    finally:
+        frappe.set_user(user)
     doc.db_set("sales_order", so.name)
     return so.name
 

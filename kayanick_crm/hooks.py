@@ -259,13 +259,13 @@ app_license = "mit"
 
 # --- kayanick generated (do not edit by hand) ---
 permission_query_conditions = {
-    "KC Visit": "kayanick_crm.kayanick_crm.doctype.kc_visit.kc_visit.get_permission_query_conditions",
-    "KC Case": "kayanick_crm.kayanick_crm.doctype.kc_case.kc_case.get_permission_query_conditions",
+    "KC Visit": "kayanick_crm.perms.visit_query",
+    "KC Case": "kayanick_crm.perms.case_query",
 }
 
 has_permission = {
-    "KC Visit": "kayanick_crm.kayanick_crm.doctype.kc_visit.kc_visit.has_permission",
-    "KC Case": "kayanick_crm.kayanick_crm.doctype.kc_case.kc_case.has_permission",
+    "KC Visit": "kayanick_crm.perms.visit_has_permission",
+    "KC Case": "kayanick_crm.perms.case_has_permission",
 }
 
 fixtures = [
@@ -273,7 +273,6 @@ fixtures = [
     {"dt": "Role", "filters": [["name", "in", ["Sales Rep", "Sales Manager"]]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Dashboard Chart", "filters": [["module", "=", "KAYANICK CRM"]]},
-    {"dt": "Report", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Workspace Sidebar", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Desktop Icon", "filters": [["name", "=", "Kayanick CRM"]]},
     "KC Area",
