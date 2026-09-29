@@ -2,120 +2,121 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import get_fullname, getdate, now, today
+from frappe.utils import add_days, get_first_day, get_fullname, getdate, now, today
 
-CLOSED = ["Completed", "Cancelled"]
-
-# fields the mobile form may set; sales_rep is always the logged-in user
 VISIT_FIELDS = (
-    "hospital_account", "doctor", "visit_type", "purpose", "products_discussed",
-    "doctor_interest_level", "visit_notes", "next_action", "next_action_owner",
-    "due_date", "next_visit_date", "visit_date", "geolocation", "check_in_time",
+    "hospital", "doctor", "visit_purpose", "visit_outcome", "relationship_level",
+    "notes", "next_action", "next_visit_date", "visit_date", "geolocation",
 )
+LIST_DTS = {
+    "purposes": "KC Visit Purpose",
+    "outcomes": "KC Visit Outcome",
+    "levels": "KC Relationship Level",
+    "products": "KC Product",
+}
 
 
-def _titles(doctype, title_field, names):
+def _doctor_titles(names):
     names = sorted({n for n in names if n})
     if not names:
         return {}
-    rows = frappe.get_list(
-        doctype, filters={"name": ["in", names]}, fields=["name", title_field],
-        limit_page_length=len(names),
-    )
-    return {r.name: r.get(title_field) for r in rows}
+    rows = frappe.get_list("KC Doctor", filters={"name": ["in", names]}, fields=["name", "doctor_name"],
+                           limit_page_length=len(names))
+    return {r.name: r.doctor_name for r in rows}
+
+
+def _count(filters):
+    return len(frappe.get_list("KC Visit", filters=filters, pluck="name", limit_page_length=100000))
+
+
+@frappe.whitelist()
+def get_options():
+    return {k: frappe.get_list(dt, pluck="name", order_by="creation asc", limit_page_length=500)
+            for k, dt in LIST_DTS.items()}
 
 
 @frappe.whitelist()
 def get_today():
     user = frappe.session.user
-    tasks = frappe.get_list(
-        "KC Task",
-        filters={"owner_rep": user, "status": ["not in", CLOSED]},
-        fields=["name", "task_description", "task_type", "priority", "status",
-                "due_date", "hospital_account", "doctor"],
-        order_by="due_date asc",
-        limit_page_length=50,
+    day = getdate(today())
+    horizon = getdate(add_days(today(), 7))
+    fields = ["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome",
+              "next_action", "next_visit_date", "order_expected"]
+    visits = frappe.get_list(
+        "KC Visit",
+        filters={"sales_rep": user, "visit_date": [">=", add_days(today(), -180)]},
+        fields=fields, order_by="visit_date desc, creation desc", limit_page_length=500,
     )
-    hospitals = _titles("KC Account", "account_name", [t.hospital_account for t in tasks])
-    doctors = _titles("KC Doctor", "doctor_name", [t.doctor for t in tasks])
-    limit = getdate(today())
-    for t in tasks:
-        t["hospital_title"] = hospitals.get(t.hospital_account, t.hospital_account)
-        t["doctor_title"] = doctors.get(t.doctor, t.doctor)
-        t["is_overdue"] = bool(t.due_date) and getdate(t.due_date) < limit
+    titles = _doctor_titles([v.doctor for v in visits])
+    for v in visits:
+        v["doctor_title"] = titles.get(v.doctor, v.doctor)
 
-    due_visits = frappe.get_list(
-        "KC Account",
-        filters={"account_owner": user, "next_visit": ["<=", today()]},
-        fields=["name", "account_name", "city", "tier", "last_visit", "next_visit"],
-        order_by="next_visit asc",
-        limit_page_length=50,
-    )
-    for a in due_visits:
-        a["is_overdue"] = getdate(a.next_visit) < limit
-    return {"user": get_fullname(user), "today": today(), "tasks": tasks, "due_visits": due_visits}
+    seen, due = set(), []
+    for v in visits:  # newest first: only the latest visit per hospital + doctor decides the follow-up
+        key = (v.hospital, v.doctor or "")
+        if key in seen:
+            continue
+        seen.add(key)
+        if v.next_visit_date and getdate(v.next_visit_date) <= horizon:
+            nd = getdate(v.next_visit_date)
+            v["is_overdue"] = nd < day
+            v["is_today"] = nd == day
+            due.append(v)
+    due.sort(key=lambda x: getdate(x.next_visit_date))
+
+    month = [["visit_date", ">=", get_first_day(today())]]
+    stats = {
+        "month_visits": _count(month),
+        "month_positive": _count(month + [["visit_outcome", "=", "Positive"]]),
+        "month_orders": _count(month + [["order_expected", "=", 1]]),
+        "due": sum(1 for v in due if getdate(v.next_visit_date) <= day),
+    }
+    return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "recent": visits[:5]}
 
 
 @frappe.whitelist()
 def search(text=""):
     text = (text or "").strip()[:60]
     like = "%" + text + "%"
-    acc = dict(fields=["name", "account_name", "city", "tier", "last_visit", "next_visit"],
-               order_by="modified desc", limit_page_length=20)
-    doc = dict(fields=["name", "doctor_name", "specialty", "hospital_account", "last_visit"],
-               order_by="modified desc", limit_page_length=20)
+    hosp = dict(fields=["name", "area", "hospital_type", "last_visit", "next_visit"],
+                order_by="modified desc", limit_page_length=30)
+    doc = dict(fields=["name", "doctor_name", "hospital", "relationship_level", "last_visit"],
+               order_by="modified desc", limit_page_length=30)
     if text:
-        acc["or_filters"] = [["account_name", "like", like], ["city", "like", like]]
-        doc["or_filters"] = [["doctor_name", "like", like], ["specialty", "like", like]]
-    accounts = frappe.get_list("KC Account", **acc)
-    doctors = frappe.get_list("KC Doctor", **doc)
-    titles = _titles("KC Account", "account_name", [d.hospital_account for d in doctors])
-    for d in doctors:
-        d["hospital_title"] = titles.get(d.hospital_account, d.hospital_account)
-    return {"accounts": accounts, "doctors": doctors}
+        hosp["or_filters"] = [["hospital_name", "like", like], ["area", "like", like]]
+        doc["or_filters"] = [["doctor_name", "like", like], ["hospital", "like", like]]
+    return {"hospitals": frappe.get_list("KC Hospital", **hosp), "doctors": frappe.get_list("KC Doctor", **doc)}
 
 
 @frappe.whitelist()
 def get_doctors(hospital):
     return frappe.get_list(
-        "KC Doctor", filters={"hospital_account": hospital},
-        fields=["name", "doctor_name", "specialty"],
-        order_by="doctor_name asc", limit_page_length=100,
+        "KC Doctor", filters={"hospital": hospital},
+        fields=["name", "doctor_name", "relationship_level"],
+        order_by="doctor_name asc", limit_page_length=300,
     )
 
 
 @frappe.whitelist(methods=["POST"])
 def create_visit(payload):
     data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
-    user = frappe.session.user
     clean = {k: data.get(k) for k in VISIT_FIELDS if data.get(k) not in (None, "")}
-
-    hospital = clean.get("hospital_account")
+    hospital = clean.get("hospital")
     if not hospital:
         frappe.throw(_("Hospital is required"))
-    if not frappe.has_permission("KC Account", "read", doc=hospital):
-        frappe.throw(_("You cannot log visits for this account"), frappe.PermissionError)
-    doctor = clean.get("doctor")
-    if doctor and frappe.db.get_value("KC Doctor", doctor, "hospital_account") != hospital:
-        frappe.throw(_("This doctor does not belong to the selected hospital"))
-    if clean.get("next_action") and clean.get("due_date") and not clean.get("next_action_owner"):
-        clean["next_action_owner"] = user
-    clean.setdefault("visit_date", now())
-    if clean.get("geolocation") and not clean.get("check_in_time"):
-        clean["check_in_time"] = now()
+    if not frappe.db.exists("KC Hospital", hospital):
+        frappe.throw(_("Hospital {0} not found").format(hospital))
+    clean.setdefault("visit_date", today())
 
-    visit = frappe.get_doc({"doctype": "KC Visit", "sales_rep": user, **clean})
+    visit = frappe.get_doc({
+        "doctype": "KC Visit",
+        "sales_rep": frappe.session.user,
+        "order_expected": 1 if data.get("order_expected") else 0,
+        "check_in_time": now(),
+        **clean,
+    })
+    for product in data.get("products") or []:
+        if product:
+            visit.append("products", {"product": product})
     visit.insert()
     return {"name": visit.name}
-
-
-@frappe.whitelist(methods=["POST"])
-def complete_task(task, result_feedback=None):
-    doc = frappe.get_doc("KC Task", task)
-    doc.check_permission("write")
-    doc.status = "Completed"
-    doc.completion_date = today()
-    if result_feedback:
-        doc.result_feedback = result_feedback
-    doc.save()
-    return {"name": doc.name, "status": doc.status}
