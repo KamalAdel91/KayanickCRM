@@ -11,7 +11,7 @@ const props = defineProps({
   placeholder: { type: String, default: "Search" },
   createLabel: String,
 })
-const emit = defineEmits(["update:open", "pick", "create"])
+const emit = defineEmits(["update:open", "pick", "unpick", "create"])
 const q = ref("")
 const rows = ref([])
 const loading = ref(false)
@@ -43,6 +43,7 @@ watch(() => props.open, async (v) => {
 })
 watch(q, () => { clearTimeout(timer); timer = setTimeout(load, 250) })
 function pick(r) {
+  if (props.multi && props.selected.includes(r.value)) { emit("unpick", r); return }
   emit("pick", r)
   if (!props.multi) emit("update:open", false)
 }
@@ -84,7 +85,7 @@ function create() {
               <span class="block truncate font-medium" dir="auto">{{ r.label }}</span>
               <span v-if="r.sub" class="block truncate text-xs text-gray-500" dir="auto">{{ r.sub }}</span>
             </span>
-            <span v-if="selected.includes(r.value)" class="badge badge-blue"><Icon name="check" :size="12" />Added</span>
+            <span v-if="selected.includes(r.value)" class="badge badge-blue"><Icon name="check" :size="12" />Added<Icon v-if="multi" name="x" :size="12" /></span>
             <Icon v-else :name="multi ? 'plus' : 'chevron-right'" :size="16" class="text-gray-300" />
           </button>
           <button v-if="createLabel && q.trim()" type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left text-brand-700 active:bg-gray-50" @click="create">

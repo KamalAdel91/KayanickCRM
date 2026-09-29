@@ -1,4 +1,5 @@
 import json
+from contextlib import contextmanager
 
 import frappe
 from frappe import _
@@ -64,6 +65,45 @@ def get_cases():
     return rows
 
 
+def attachments(doctype, name):
+    return frappe.get_all("File", filters={"attached_to_doctype": doctype, "attached_to_name": name},
+                          fields=["name", "file_name", "file_url", "file_size"], order_by="creation asc")
+
+
+@contextmanager
+def _as_administrator():
+    # frappe.set_user() also rewrites session.sid; restoring only the user would send the
+    # browser a broken sid cookie and log the rep out, so the whole session is put back.
+    session = frappe.local.session
+    saved = frappe._dict(session)
+    form_dict = frappe.local.form_dict
+    frappe.set_user("Administrator")
+    try:
+        yield
+    finally:
+        frappe.set_user(saved.user)
+        session.update(saved)
+        frappe.local.form_dict = form_dict
+
+
+@frappe.whitelist()
+def get_case(name):
+    doc = frappe.get_doc("KC Case", name)
+    doc.check_permission("read")
+    so_status = ""
+    if doc.sales_order:
+        ds = frappe.db.get_value("Sales Order", doc.sales_order, "docstatus")
+        so_status = {0: "Draft", 1: "Submitted", 2: "Cancelled"}.get(ds, "Deleted")
+    return {
+        "name": doc.name, "customer": doc.customer, "customer_name": doc.customer_name,
+        "case_date": doc.case_date, "notes": doc.notes, "sales_order": doc.sales_order,
+        "so_status": so_status or "No order", "sales_rep": doc.sales_rep,
+        "items": [{"item_code": r.item_code, "item_name": r.item_name, "qty": r.qty, "uom": r.uom} for r in doc.items],
+        "attachments": attachments("KC Case", doc.name),
+        "can_order": not doc.sales_order and bool(frappe.has_permission("KC Case", "write", doc=doc)),
+    }
+
+
 def _default_warehouse(item_code, company):
     wh = frappe.db.get_value("Item Default", {"parent": item_code, "company": company}, "default_warehouse")
     if not wh:
@@ -102,18 +142,15 @@ def make_sales_order(case):
     user = frappe.session.user
     # ERPNext checks the session user while pricing items; the rep has no ERPNext roles,
     # so the draft is built as Administrator after the case permission check above.
-    frappe.set_user("Administrator")
-    try:
+    with _as_administrator():
         so.insert()
-        frappe.db.set_value("Sales Order", so.name, "owner", user, update_modified=False)
-    finally:
-        frappe.set_user(user)
+    frappe.db.set_value("Sales Order", so.name, "owner", user, update_modified=False)
     doc.db_set("sales_order", so.name)
     return so.name
 
 
 @frappe.whitelist(methods=["POST"])
-def create_case(payload):
+def create_case(payload, make_order=1):
     _check_role()
     data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
     items = [i for i in (data.get("items") or []) if i.get("item_code") and float(i.get("qty") or 0) > 0]
@@ -126,5 +163,7 @@ def create_case(payload):
         "items": [{"item_code": i["item_code"], "qty": float(i["qty"])} for i in items],
     })
     case.insert()
-    so = make_sales_order(case.name)
+    # the mobile app passes make_order=0, uploads the attachments, then calls make_sales_order,
+    # because a case is read-only for the rep once its Sales Order exists
+    so = make_sales_order(case.name) if frappe.utils.cint(make_order) else None
     return {"case": case.name, "sales_order": so}

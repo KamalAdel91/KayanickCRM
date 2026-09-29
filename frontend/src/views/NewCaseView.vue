@@ -38,6 +38,10 @@ function addItem(r) {
   if (row) row.qty = Number(row.qty) + 1
   else f.items.push({ item_code: i.name, item_name: i.item_name, uom: i.stock_uom, qty: 1 })
 }
+function removeItem(r) {
+  const row = f.items.find((x) => x.item_code === r.value)
+  if (row) remove(row)
+}
 function step(row, d) { row.qty = Math.max(1, (Number(row.qty) || 0) + d) }
 function remove(row) { f.items.splice(f.items.indexOf(row), 1) }
 function back() {
@@ -71,11 +75,18 @@ async function save() {
         customer: f.customer.name, case_date: f.case_date, notes: f.notes,
         items: f.items.map((i) => ({ item_code: i.item_code, qty: Number(i.qty) })),
       }),
+      make_order: 0,
     }, { post: true })
+    // files go on the case before the order, because the case is locked once the order exists
     const failed = attachments.value.length ? await uploadFiles("KC Case", r.case, attachments.value) : []
-    if (failed.length) alert("Order created, but these files failed to upload:\n" + failed.join("\n"))
+    if (failed.length) alert("These files failed to upload:\n" + failed.join("\n"))
     confirming.value = false
-    router.push({ name: "cases", query: { so: r.sales_order } })
+    try {
+      const so = await call("kayanick_crm.case_api.make_sales_order", { case: r.case }, { post: true })
+      router.push({ name: "cases", query: { so } })
+    } catch (e) {
+      router.push({ name: "case-detail", params: { name: r.case }, query: { error: e.message } })
+    }
   } catch (e) {
     confirming.value = false
     error.value = e.message
@@ -156,6 +167,6 @@ async function save() {
     <PickerSheet v-model:open="customerOpen" title="Choose customer" placeholder="Search customers"
       :fetcher="fetchCustomers" @pick="(r) => (f.customer = r.raw)" />
     <PickerSheet v-model:open="itemOpen" title="Add items" placeholder="Search items" multi :selected="selectedCodes"
-      :fetcher="fetchItems" @pick="addItem" />
+      :fetcher="fetchItems" @pick="addItem" @unpick="removeItem" />
   </div>
 </template>

@@ -123,10 +123,10 @@ onMounted(() => {
         </section>
 
         <section class="pb-2">
-          <p class="section-label"><Icon name="clipboard" :size="14" />Recent visits</p>
+          <p class="section-label"><Icon name="clipboard" :size="14" /><span class="flex-1">Recent visits</span><router-link v-if="data.recent.length" to="/visits" class="text-brand-700">See all</router-link></p>
           <div v-if="!data.recent.length" class="empty"><Icon name="clipboard" :size="24" /><p>No visits yet</p></div>
           <div v-else class="card divide-y divide-gray-100">
-            <div v-for="v in data.recent" :key="v.name" class="flex items-center gap-3 px-4 py-3">
+            <router-link v-for="v in data.recent" :key="v.name" :to="{ name: 'visit-detail', params: { name: v.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
               <span class="avatar">{{ initials(v.hospital) }}</span>
               <div class="min-w-0 flex-1">
                 <p class="truncate font-medium" dir="auto">{{ v.hospital }}</p>
@@ -136,7 +136,7 @@ onMounted(() => {
                 <span v-if="v.visit_outcome" class="badge" :class="outcomeBadge(v.visit_outcome)">{{ v.visit_outcome }}</span>
                 <span v-if="v.order_expected" class="badge badge-blue"><Icon name="cart" :size="11" />Order</span>
               </div>
-            </div>
+            </router-link>
           </div>
         </section>
       </template>

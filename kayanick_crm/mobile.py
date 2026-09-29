@@ -97,6 +97,34 @@ def get_doctors(hospital):
     )
 
 
+@frappe.whitelist()
+def get_visits():
+    rows = frappe.get_list(
+        "KC Visit", fields=["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome", "order_expected"],
+        order_by="visit_date desc, creation desc", limit_page_length=100,
+    )
+    titles = _doctor_titles([r.doctor for r in rows])
+    for r in rows:
+        r["doctor_title"] = titles.get(r.doctor, r.doctor)
+    return rows
+
+
+@frappe.whitelist()
+def get_visit(name):
+    from kayanick_crm.case_api import attachments
+
+    doc = frappe.get_doc("KC Visit", name)
+    doc.check_permission("read")
+    out = {f: doc.get(f) for f in VISIT_FIELDS if f != "geolocation"}
+    out.update({
+        "name": doc.name, "sales_rep": get_fullname(doc.sales_rep), "order_expected": doc.order_expected,
+        "check_in_time": doc.check_in_time, "products": [p.product for p in doc.products],
+        "doctor_title": _doctor_titles([doc.doctor]).get(doc.doctor, doc.doctor),
+        "attachments": attachments("KC Visit", doc.name),
+    })
+    return out
+
+
 @frappe.whitelist(methods=["POST"])
 def create_visit(payload):
     data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})

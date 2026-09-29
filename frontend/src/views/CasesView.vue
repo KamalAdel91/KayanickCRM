@@ -50,14 +50,15 @@ onMounted(() => {
         <router-link to="/case/new" class="btn btn-subtle mt-1">Create the first one</router-link>
       </div>
       <div v-else class="card divide-y divide-gray-100">
-        <div v-for="c in rows" :key="c.name" class="flex items-center gap-3 px-4 py-3">
+        <router-link v-for="c in rows" :key="c.name" :to="{ name: 'case-detail', params: { name: c.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
           <span class="avatar">{{ initials(c.customer_name) }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate font-medium" dir="auto">{{ c.customer_name }}</p>
             <p class="truncate text-xs text-gray-500">{{ fmt(c.case_date) }} · {{ c.items }} item{{ c.items === 1 ? "" : "s" }} · {{ c.sales_order || c.name }}</p>
           </div>
           <span class="badge" :class="BADGE[c.so_status] || 'badge-gray'">{{ c.so_status }}</span>
-        </div>
+          <Icon name="chevron-right" :size="16" class="text-gray-300" />
+        </router-link>
       </div>
     </div>
   </div>

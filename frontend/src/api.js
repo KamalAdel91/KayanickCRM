@@ -28,7 +28,7 @@ export async function call(method, args = {}, { post = false } = {}) {
   } catch (e) {
     throw new Error("No connection")
   }
-  if (res.status === 401) {
+  if (res.status === 401 || (res.status === 403 && document.cookie.indexOf("user_id=Guest") >= 0)) {
     window.location.href = "/login?redirect-to=/KayanickCRM"
     throw new Error("Session expired")
   }
