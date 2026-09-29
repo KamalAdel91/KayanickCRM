@@ -7,6 +7,7 @@ import Icon from "../components/Icon.vue"
 import AttachPicker from "../components/AttachPicker.vue"
 import PickerSheet from "../components/PickerSheet.vue"
 import PickField from "../components/PickField.vue"
+import ConfirmSheet from "../components/ConfirmSheet.vue"
 import { uploadFiles } from "../upload"
 
 const route = useRoute()
@@ -23,6 +24,7 @@ const geo = ref(null)
 const geoState = ref("locating")
 const saving = ref(false)
 const attachments = ref([])
+const confirming = ref(false)
 const error = ref("")
 
 const geoLabel = computed(() => (geo.value ? "Location on" : geoState.value === "locating" ? "Locating…" : "No location"))
@@ -65,14 +67,6 @@ function openDoctors() {
   if (!f.hospital) { sheet.value = "hospital"; return }
   sheet.value = "doctor"
 }
-async function addDoctor(name) {
-  if (!name) return
-  try {
-    const d = await call("kayanick_crm.mobile.add_doctor", { hospital: f.hospital, doctor_name: name }, { post: true })
-    doctors.value.push(d)
-    pickDoctor(d)
-  } catch (e) { error.value = e.message }
-}
 function pickLevel(l) {
   levelTouched.value = true
   f.level = f.level === l ? "" : l
@@ -102,6 +96,28 @@ onMounted(async () => {
   )
 })
 
+const summary = computed(() => [
+  { label: "Hospital", value: f.hospital },
+  { label: "Doctor", value: f.doctor ? f.doctor.doctor_name : "" },
+  { label: "Date", value: f.visit_date },
+  { label: "Purpose", value: f.purpose },
+  { label: "Outcome", value: f.outcome },
+  { label: "Relationship", value: f.level },
+  { label: "Products", value: f.products.join(", ") },
+  { label: "Order expected", value: f.order ? "Yes" : "" },
+  { label: "Notes", value: f.notes },
+  { label: "Next action", value: f.next_action },
+  { label: "Next visit", value: f.next_visit_date },
+  { label: "Attachments", value: attachments.value.length ? String(attachments.value.length) : "" },
+])
+
+function askSave() {
+  error.value = ""
+  if (!f.hospital) { error.value = "Choose a hospital first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  if (!f.doctor) { error.value = "Choose a doctor"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  confirming.value = true
+}
+
 async function save() {
   error.value = ""
   if (!f.hospital) { error.value = "Choose a hospital first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
@@ -127,8 +143,10 @@ async function save() {
     const r = await call("kayanick_crm.mobile.create_visit", { payload: JSON.stringify(payload) }, { post: true })
     const failed = attachments.value.length ? await uploadFiles("KC Visit", r.name, attachments.value) : []
     if (failed.length) alert("Visit saved, but these files failed to upload:\n" + failed.join("\n"))
+    confirming.value = false
     router.push({ name: "today", query: { saved: r.name } })
   } catch (e) {
+    confirming.value = false
     error.value = e.message
     window.scrollTo({ top: 0, behavior: "smooth" })
   } finally { saving.value = false }
@@ -145,7 +163,7 @@ async function save() {
       </div>
     </header>
 
-    <form id="visitform" class="wrap space-y-5 py-4" @submit.prevent="save">
+    <form id="visitform" class="wrap space-y-5 py-4" @submit.prevent="askSave">
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
 
       <section>
@@ -246,9 +264,11 @@ async function save() {
       </div>
     </div>
 
+    <ConfirmSheet v-model:open="confirming" title="Save this visit?" :rows="summary" confirm-text="Save visit"
+      note="You won't be able to delete it after saving." :busy="saving" @confirm="save" />
     <PickerSheet v-model:open="hospitalOpen" title="Choose hospital" placeholder="Search hospitals or areas"
       :fetcher="fetchHospitals" @pick="pickHospital" />
     <PickerSheet v-model:open="doctorOpen" title="Choose doctor" placeholder="Search doctors"
-      :fetcher="fetchDoctors" create-label="Add new doctor" @pick="(r) => pickDoctor(r.raw)" @create="addDoctor" />
+      :fetcher="fetchDoctors" @pick="(r) => pickDoctor(r.raw)" />
   </div>
 </template>

@@ -7,6 +7,7 @@ import Icon from "../components/Icon.vue"
 import AttachPicker from "../components/AttachPicker.vue"
 import PickerSheet from "../components/PickerSheet.vue"
 import PickField from "../components/PickField.vue"
+import ConfirmSheet from "../components/ConfirmSheet.vue"
 import { uploadFiles } from "../upload"
 
 const router = useRouter()
@@ -14,6 +15,7 @@ const f = reactive({ customer: null, case_date: localToday(), notes: "", items: 
 const sheet = ref("")
 const saving = ref(false)
 const attachments = ref([])
+const confirming = ref(false)
 const error = ref("")
 
 const totalQty = computed(() => f.items.reduce((s, i) => s + (Number(i.qty) || 0), 0))
@@ -43,6 +45,21 @@ function back() {
   else router.push("/cases")
 }
 
+const summary = computed(() => [
+  { label: "Customer", value: f.customer ? f.customer.customer_name : "" },
+  { label: "Case date", value: f.case_date },
+  { label: "Items", value: f.items.map((i) => i.qty + " × " + i.item_name).join("\n") },
+  { label: "Notes", value: f.notes },
+  { label: "Attachments", value: attachments.value.length ? String(attachments.value.length) : "" },
+])
+
+function askSave() {
+  error.value = ""
+  if (!f.customer) { error.value = "Choose a customer first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  if (!f.items.length) { error.value = "Add at least one item"; return }
+  confirming.value = true
+}
+
 async function save() {
   error.value = ""
   if (!f.customer) { error.value = "Choose a customer first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
@@ -57,8 +74,10 @@ async function save() {
     }, { post: true })
     const failed = attachments.value.length ? await uploadFiles("KC Case", r.case, attachments.value) : []
     if (failed.length) alert("Order created, but these files failed to upload:\n" + failed.join("\n"))
+    confirming.value = false
     router.push({ name: "cases", query: { so: r.sales_order } })
   } catch (e) {
+    confirming.value = false
     error.value = e.message
     window.scrollTo({ top: 0, behavior: "smooth" })
   } finally { saving.value = false }
@@ -126,12 +145,14 @@ async function save() {
 
     <div class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">
       <div class="wrap py-3">
-        <button type="button" class="btn btn-primary h-11 w-full text-[15px]" :disabled="!canSave" @click="save">
+        <button type="button" class="btn btn-primary h-11 w-full text-[15px]" :disabled="!canSave" @click="askSave">
           {{ saving ? (attachments.length ? "Creating & uploading…" : "Creating…") : "Create Sales Order" }}
         </button>
       </div>
     </div>
 
+    <ConfirmSheet v-model:open="confirming" title="Create this Sales Order?" :rows="summary" confirm-text="Create order"
+      note="The case is locked once the Sales Order is created." :busy="saving" @confirm="save" />
     <PickerSheet v-model:open="customerOpen" title="Choose customer" placeholder="Search customers"
       :fetcher="fetchCustomers" @pick="(r) => (f.customer = r.raw)" />
     <PickerSheet v-model:open="itemOpen" title="Add items" placeholder="Search items" multi :selected="selectedCodes"

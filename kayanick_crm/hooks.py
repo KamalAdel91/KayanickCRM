@@ -1,9 +1,11 @@
 app_name = "kayanick_crm"
-app_title = "Kayanick Crm"
+app_title = "Kayanick CRM"
 app_publisher = "Kamal Adel"
-app_description = "Kayanick Crm"
+app_description = "Field sales CRM for Kayanick: visits, cases and draft sales orders, with a mobile web app"
 app_email = "Kamal.adel@outlook.com"
 app_license = "mit"
+
+required_apps = ["erpnext"]
 
 # Apps
 # ------------------
@@ -257,7 +259,6 @@ app_license = "mit"
 # ignore_translatable_strings_from = []
 
 
-# --- kayanick generated (do not edit by hand) ---
 permission_query_conditions = {
     "KC Visit": "kayanick_crm.perms.visit_query",
     "KC Case": "kayanick_crm.perms.case_query",
@@ -270,7 +271,7 @@ has_permission = {
 
 fixtures = [
     {"dt": "Custom Field", "filters": [["module", "=", "KAYANICK CRM"]]},
-    {"dt": "Role", "filters": [["name", "in", ["Sales Rep", "Sales Manager"]]]},
+    {"dt": "Role", "filters": [["name", "=", "Sales Rep"]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Dashboard Chart", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Workspace Sidebar", "filters": [["module", "=", "KAYANICK CRM"]]},

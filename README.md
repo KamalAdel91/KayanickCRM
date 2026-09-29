@@ -1,40 +1,37 @@
-### Kayanick Crm
+# Kayanick CRM
 
-Kayanick Crm
+Field sales CRM for Kayanick, built on Frappe / ERPNext v16.
 
-### Installation
+- **Visits**: hospital + doctor visits with purpose, outcome, relationship level, products discussed, next action and GPS check-in.
+- **Cases**: customer + items; creates a **draft Sales Order** in ERPNext for the office to review and submit. A case is locked once its order exists.
+- **Mobile web app** at `/KayanickCRM` (installable to the home screen).
+- **Team visibility** from the ERPNext **Sales Person** tree: a Sales Manager sees his own records and everyone below him; a Sales Rep sees only his own; System Manager sees all.
 
-You can install this app using the [bench](https://github.com/frappe/bench) CLI:
-
-```bash
-cd $PATH_TO_YOUR_BENCH
-bench get-app $URL_OF_THIS_REPO --branch version-16
-bench install-app kayanick_crm
-```
-
-### Contributing
-
-This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:
+## Install
 
 ```bash
-cd apps/kayanick_crm
-pre-commit install
+bench get-app https://github.com/KamalAdel91/KayanickCRM --branch version-16
+bench --site <site> install-app kayanick_crm
 ```
 
-Pre-commit is configured to use the following tools for checking and formatting your code:
+Requires ERPNext.
 
-- ruff
-- eslint
-- prettier
-- pyupgrade
-### CI
+## Setup
 
-This app can use GitHub Actions for CI. The following workflows are configured:
+1. Give reps the **Sales Rep** role and managers the **Sales Manager** role.
+2. Link each user to an **Employee** (User ID), and each Employee to a **Sales Person**; put reps under their manager's Sales Person.
+3. Make sure sold items have a **default warehouse** (Item Defaults or Stock Settings) so draft orders can be created.
 
-- CI: Installs this app and runs unit tests on every push to `develop` branch.
-- Linters: Runs [Frappe Semgrep Rules](https://github.com/frappe/semgrep-rules) and [pip-audit](https://pypi.org/project/pip-audit/) on every pull request.
+## Mobile app development
 
+```bash
+cd frontend
+npm install
+npm run build   # writes kayanick_crm/public/frontend and kayanick_crm/www/kayanick.html
+```
 
-### License
+The built files are committed, so no Node build is needed on deploy.
 
-mit
+## License
+
+MIT
