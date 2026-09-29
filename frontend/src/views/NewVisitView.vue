@@ -4,6 +4,8 @@ import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
 import { initials, localToday, outcomeBadge, levelBadge, chipOn, dot } from "../ui"
 import Icon from "../components/Icon.vue"
+import AttachPicker from "../components/AttachPicker.vue"
+import { uploadFiles } from "../upload"
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +21,7 @@ const doctors = ref([])
 const geo = ref(null)
 const geoState = ref("locating")
 const saving = ref(false)
+const attachments = ref([])
 const error = ref("")
 let timer = null
 
@@ -105,6 +108,8 @@ async function save() {
   saving.value = true
   try {
     const r = await call("kayanick_crm.mobile.create_visit", { payload: JSON.stringify(payload) }, { post: true })
+    const failed = attachments.value.length ? await uploadFiles("KC Visit", r.name, attachments.value) : []
+    if (failed.length) alert("Visit saved, but these files failed to upload:\n" + failed.join("\n"))
     router.push({ name: "today", query: { saved: r.name } })
   } catch (e) {
     error.value = e.message
@@ -232,12 +237,17 @@ async function save() {
           </div>
         </div>
       </section>
+
+      <section>
+        <p class="section-label"><Icon name="paperclip" :size="14" />Attachments<span v-if="attachments.length" class="text-gray-400">· {{ attachments.length }}</span></p>
+        <div class="card p-4"><AttachPicker v-model="attachments" /></div>
+      </section>
     </form>
 
     <div class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">
       <div class="wrap py-3">
         <button form="visitform" type="submit" class="btn btn-primary h-11 w-full text-[15px]" :disabled="saving">
-          {{ saving ? "Saving…" : "Save visit" }}
+          {{ saving ? (attachments.length ? "Saving & uploading…" : "Saving…") : "Save visit" }}
         </button>
       </div>
     </div>

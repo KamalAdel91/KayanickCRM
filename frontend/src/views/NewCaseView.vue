@@ -4,6 +4,8 @@ import { useRouter } from "vue-router"
 import { call } from "../api"
 import { initials, localToday } from "../ui"
 import Icon from "../components/Icon.vue"
+import AttachPicker from "../components/AttachPicker.vue"
+import { uploadFiles } from "../upload"
 
 const router = useRouter()
 const f = reactive({ customer: null, case_date: localToday(), notes: "", items: [] })
@@ -12,6 +14,7 @@ const customers = ref([])
 const iq = ref("")
 const itemHits = ref([])
 const saving = ref(false)
+const attachments = ref([])
 const error = ref("")
 let ct = null
 let it = null
@@ -62,6 +65,8 @@ async function save() {
         items: f.items.map((i) => ({ item_code: i.item_code, qty: Number(i.qty) })),
       }),
     }, { post: true })
+    const failed = attachments.value.length ? await uploadFiles("KC Case", r.case, attachments.value) : []
+    if (failed.length) alert("Order created, but these files failed to upload:\n" + failed.join("\n"))
     router.push({ name: "cases", query: { so: r.sales_order } })
   } catch (e) {
     error.value = e.message
@@ -155,12 +160,17 @@ async function save() {
           <textarea v-model="f.notes" rows="3" placeholder="Doctor, procedure, anything the office should know" class="input h-auto resize-none py-2" dir="auto"></textarea>
         </div>
       </section>
+
+      <section>
+        <p class="section-label"><Icon name="paperclip" :size="14" />Attachments<span v-if="attachments.length" class="text-gray-400">· {{ attachments.length }}</span></p>
+        <div class="card p-4"><AttachPicker v-model="attachments" /></div>
+      </section>
     </div>
 
     <div class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">
       <div class="wrap py-3">
         <button type="button" class="btn btn-primary h-11 w-full text-[15px]" :disabled="!canSave" @click="save">
-          {{ saving ? "Creating…" : "Create Sales Order" }}
+          {{ saving ? (attachments.length ? "Creating & uploading…" : "Creating…") : "Create Sales Order" }}
         </button>
       </div>
     </div>
