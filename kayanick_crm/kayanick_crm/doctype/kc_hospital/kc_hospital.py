@@ -1,5 +1,5 @@
 from frappe.model.document import Document
 
 
-class KCDoctor(Document):
+class KCHospital(Document):
     pass

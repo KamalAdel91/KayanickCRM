@@ -2,28 +2,17 @@
 import { ref, reactive, computed, watch, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
+import { initials, localToday, outcomeBadge, levelBadge, chipOn, dot } from "../ui"
 import Icon from "../components/Icon.vue"
-
-const PRODUCTS = ["IVL", "IVUS", "Physiology", "Renal Denervation", "Other"]
-const VISIT_TYPES = [
-  ["Face to Face", "user"], ["Phone", "phone"], ["WhatsApp", "message"],
-  ["Email", "mail"], ["Online Meeting", "video"], ["Conference", "users"],
-]
-const INTEREST = [
-  ["Very Positive", "bg-green-600", "border-green-600 bg-green-50 text-green-800"],
-  ["Positive", "bg-green-400", "border-green-500 bg-green-50 text-green-800"],
-  ["Neutral", "bg-gray-400", "border-gray-500 bg-gray-100 text-gray-800"],
-  ["Negative", "bg-red-500", "border-red-500 bg-red-50 text-red-700"],
-  ["No Decision", "bg-amber-500", "border-amber-500 bg-amber-50 text-amber-800"],
-  ["Not Available", "bg-gray-300", "border-gray-400 bg-gray-100 text-gray-600"],
-]
 
 const route = useRoute()
 const router = useRouter()
+const opts = ref({ purposes: [], outcomes: [], levels: [], products: [] })
 const f = reactive({
-  hospital: "", hospitalTitle: "", doctor: "", visit_type: "Face to Face", interest: "",
-  products: [], purpose: "", notes: "", next_action: "", due_date: "", next_visit_date: "",
+  hospital: "", doctor: "", visit_date: localToday(), purpose: "", outcome: "", level: "",
+  products: [], order: false, notes: "", next_action: "", next_visit_date: "",
 })
+const levelTouched = ref(false)
 const q = ref("")
 const hits = ref([])
 const doctors = ref([])
@@ -35,18 +24,14 @@ let timer = null
 
 const geoLabel = computed(() => (geo.value ? "Location on" : geoState.value === "locating" ? "Locating…" : "No location"))
 
-function initials(s) {
-  return (s || "?").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase()
-}
 async function loadDoctors() {
   doctors.value = []
   if (!f.hospital) return
   try { doctors.value = await call("kayanick_crm.mobile.get_doctors", { hospital: f.hospital }) }
   catch (e) { error.value = e.message }
 }
-function pick(h) {
-  f.hospital = h.name
-  f.hospitalTitle = h.account_name
+function pickHospital(name) {
+  f.hospital = name
   f.doctor = ""
   hits.value = []
   q.value = ""
@@ -54,32 +39,41 @@ function pick(h) {
 }
 function clearHospital() {
   f.hospital = ""
-  f.hospitalTitle = ""
   f.doctor = ""
   doctors.value = []
+}
+function pickDoctor(d) {
+  f.doctor = d ? d.name : ""
+  if (d && d.relationship_level && !levelTouched.value) f.level = d.relationship_level
+}
+function pickLevel(l) {
+  levelTouched.value = true
+  f.level = f.level === l ? "" : l
+}
+function toggleProduct(p) {
+  const i = f.products.indexOf(p)
+  if (i >= 0) f.products.splice(i, 1)
+  else f.products.push(p)
 }
 watch(q, (v) => {
   clearTimeout(timer)
   if (!v || v.length < 2) { hits.value = []; return }
   timer = setTimeout(async () => {
-    try { hits.value = (await call("kayanick_crm.mobile.search", { text: v })).accounts }
+    try { hits.value = (await call("kayanick_crm.mobile.search", { text: v })).hospitals }
     catch (e) { error.value = e.message }
   }, 300)
 })
-function toggle(p) {
-  const i = f.products.indexOf(p)
-  if (i >= 0) f.products.splice(i, 1)
-  else f.products.push(p)
-}
 function back() {
   if (window.history.length > 1) router.back()
   else router.push("/")
 }
-onMounted(() => {
+onMounted(async () => {
+  try { opts.value = await call("kayanick_crm.mobile.get_options") }
+  catch (e) { error.value = e.message }
   if (route.query.hospital) {
     f.hospital = route.query.hospital
-    f.hospitalTitle = route.query.title || route.query.hospital
-    loadDoctors()
+    await loadDoctors()
+    if (route.query.doctor) pickDoctor(doctors.value.find((d) => d.name === route.query.doctor))
   }
   if (!navigator.geolocation) { geoState.value = "unsupported"; return }
   navigator.geolocation.getCurrentPosition(
@@ -93,10 +87,10 @@ async function save() {
   error.value = ""
   if (!f.hospital) { error.value = "Choose a hospital first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   const payload = {
-    hospital_account: f.hospital, doctor: f.doctor, visit_type: f.visit_type,
-    doctor_interest_level: f.interest, products_discussed: f.products.join(", "),
-    purpose: f.purpose, visit_notes: f.notes, next_action: f.next_action,
-    due_date: f.due_date, next_visit_date: f.next_visit_date,
+    hospital: f.hospital, doctor: f.doctor, visit_date: f.visit_date,
+    visit_purpose: f.purpose, visit_outcome: f.outcome, relationship_level: f.level,
+    products: f.products, order_expected: f.order, notes: f.notes,
+    next_action: f.next_action, next_visit_date: f.next_visit_date,
   }
   if (geo.value) {
     payload.geolocation = JSON.stringify({
@@ -133,13 +127,13 @@ async function save() {
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
 
       <section>
-        <p class="section-label flex items-center gap-1.5"><Icon name="building" :size="14" />Hospital &amp; doctor</p>
+        <p class="section-label"><Icon name="building" :size="14" />Hospital &amp; doctor</p>
         <div class="card space-y-4 p-4">
           <div>
             <label class="label">Hospital</label>
             <div v-if="f.hospital" class="flex items-center gap-3 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2">
-              <span class="avatar h-8 w-8 bg-white text-brand-700">{{ initials(f.hospitalTitle) }}</span>
-              <span class="flex-1 truncate font-medium" dir="auto">{{ f.hospitalTitle }}</span>
+              <span class="avatar h-8 w-8 bg-white text-brand-700">{{ initials(f.hospital) }}</span>
+              <span class="flex-1 truncate font-medium" dir="auto">{{ f.hospital }}</span>
               <button type="button" class="text-sm font-medium text-brand-700" @click="clearHospital">Change</button>
             </div>
             <template v-else>
@@ -148,10 +142,10 @@ async function save() {
                 <input v-model="q" type="search" placeholder="Type at least 2 letters" class="input pl-9" dir="auto" />
               </div>
               <div v-if="hits.length" class="card mt-2 divide-y divide-gray-100 overflow-hidden">
-                <button v-for="h in hits" :key="h.name" type="button" class="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50" @click="pick(h)">
-                  <span class="avatar h-8 w-8">{{ initials(h.account_name) }}</span>
-                  <span class="flex-1 truncate" dir="auto">{{ h.account_name }}</span>
-                  <span class="text-xs text-gray-400">{{ h.city }}</span>
+                <button v-for="h in hits" :key="h.name" type="button" class="flex w-full items-center gap-3 px-3 py-2.5 text-left active:bg-gray-50" @click="pickHospital(h.name)">
+                  <span class="avatar h-8 w-8">{{ initials(h.name) }}</span>
+                  <span class="flex-1 truncate" dir="auto">{{ h.name }}</span>
+                  <span class="text-xs text-gray-400">{{ h.area }}</span>
                 </button>
               </div>
             </template>
@@ -161,68 +155,81 @@ async function save() {
             <label class="label">Doctor</label>
             <p v-if="!doctors.length" class="text-sm text-gray-400">No doctors on file for this hospital</p>
             <div v-else class="flex flex-wrap gap-2">
-              <button type="button" class="chip" :class="{ 'chip-on': !f.doctor }" @click="f.doctor = ''">None</button>
-              <button v-for="d in doctors" :key="d.name" type="button" class="chip inline-flex items-center gap-1.5"
-                :class="{ 'chip-on': f.doctor === d.name }" dir="auto" @click="f.doctor = d.name">
-                <Icon name="user" :size="13" />{{ d.doctor_name }}
+              <button type="button" class="chip" :class="{ 'chip-on': !f.doctor }" @click="pickDoctor(null)">None</button>
+              <button v-for="d in doctors" :key="d.name" type="button" class="chip" :class="{ 'chip-on': f.doctor === d.name }"
+                dir="auto" @click="pickDoctor(d)">
+                <span class="h-2 w-2 rounded-full" :class="dot(levelBadge(d.relationship_level))"></span>{{ d.doctor_name }}
               </button>
             </div>
+          </div>
+
+          <div>
+            <label class="label">Date</label>
+            <input v-model="f.visit_date" type="date" class="input" required />
           </div>
         </div>
       </section>
 
       <section>
-        <p class="section-label flex items-center gap-1.5"><Icon name="clipboard" :size="14" />Visit details</p>
+        <p class="section-label"><Icon name="clipboard" :size="14" />Visit</p>
         <div class="card space-y-4 p-4">
           <div>
-            <label class="label">Type</label>
+            <label class="label">Visit purpose</label>
             <div class="flex flex-wrap gap-2">
-              <button v-for="[v, ic] in VISIT_TYPES" :key="v" type="button" class="chip inline-flex items-center gap-1.5"
-                :class="{ 'chip-on': f.visit_type === v }" @click="f.visit_type = v">
-                <Icon :name="ic" :size="14" />{{ v }}
+              <button v-for="p in opts.purposes" :key="p" type="button" class="chip" :class="{ 'chip-on': f.purpose === p }"
+                @click="f.purpose = f.purpose === p ? '' : p">{{ p }}</button>
+            </div>
+          </div>
+          <div>
+            <label class="label">Visit outcome</label>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="o in opts.outcomes" :key="o" type="button" class="chip" :class="f.outcome === o ? chipOn(outcomeBadge(o)) : ''"
+                @click="f.outcome = f.outcome === o ? '' : o">
+                <span class="h-2 w-2 rounded-full" :class="dot(outcomeBadge(o))"></span>{{ o }}
               </button>
             </div>
           </div>
           <div>
-            <label class="label">Products discussed</label>
+            <label class="label">Relationship level</label>
             <div class="flex flex-wrap gap-2">
-              <button v-for="p in PRODUCTS" :key="p" type="button" class="chip inline-flex items-center gap-1.5"
-                :class="f.products.includes(p) ? 'border-brand-600 bg-brand-50 text-brand-700' : ''" @click="toggle(p)">
+              <button v-for="l in opts.levels" :key="l" type="button" class="chip" :class="f.level === l ? chipOn(levelBadge(l)) : ''" @click="pickLevel(l)">
+                <span class="h-2 w-2 rounded-full" :class="dot(levelBadge(l))"></span>{{ l }}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="label">Product discussed</label>
+            <div class="flex flex-wrap gap-2">
+              <button v-for="p in opts.products" :key="p" type="button" class="chip"
+                :class="f.products.includes(p) ? 'border-brand-600 bg-brand-50 text-brand-700' : ''" @click="toggleProduct(p)">
                 <Icon v-if="f.products.includes(p)" name="check" :size="13" />{{ p }}
               </button>
             </div>
           </div>
+          <button type="button" class="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5" @click="f.order = !f.order">
+            <span class="flex items-center gap-2 text-sm font-medium"><Icon name="cart" :size="16" class="text-gray-500" />Order expected</span>
+            <span class="relative h-6 w-11 rounded-full transition" :class="f.order ? 'bg-brand-600' : 'bg-gray-200'">
+              <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="f.order ? 'left-[22px]' : 'left-0.5'"></span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <p class="section-label"><Icon name="file-text" :size="14" />Notes</p>
+        <div class="card p-4">
+          <textarea v-model="f.notes" rows="5" placeholder="What happened in the visit?" class="input h-auto resize-none py-2" dir="auto"></textarea>
+        </div>
+      </section>
+
+      <section>
+        <p class="section-label"><Icon name="flag" :size="14" />Next step</p>
+        <div class="card space-y-3 p-4">
+          <textarea v-model="f.next_action" rows="2" placeholder="Next action" class="input h-auto resize-none py-2" dir="auto"></textarea>
           <div>
-            <label class="label">Doctor interest</label>
-            <div class="flex flex-wrap gap-2">
-              <button v-for="[i, dot, on] in INTEREST" :key="i" type="button" class="chip inline-flex items-center gap-2"
-                :class="f.interest === i ? on : ''" @click="f.interest = f.interest === i ? '' : i">
-                <span class="h-2 w-2 rounded-full" :class="dot"></span>{{ i }}
-              </button>
-            </div>
+            <label class="label">Next visit date</label>
+            <input v-model="f.next_visit_date" type="date" class="input" />
           </div>
-        </div>
-      </section>
-
-      <section>
-        <p class="section-label flex items-center gap-1.5"><Icon name="file-text" :size="14" />Notes</p>
-        <div class="card space-y-3 p-4">
-          <input v-model="f.purpose" placeholder="Purpose of the visit" class="input" dir="auto" />
-          <textarea v-model="f.notes" rows="4" placeholder="What happened, what did you learn?" class="input h-auto resize-none py-2" dir="auto"></textarea>
-        </div>
-      </section>
-
-      <section>
-        <p class="section-label flex items-center gap-1.5"><Icon name="flag" :size="14" />Next step</p>
-        <div class="card space-y-3 p-4">
-          <input v-model="f.next_action" placeholder="e.g. Send IVL quotation" class="input" dir="auto" />
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="label">Action due</label><input v-model="f.due_date" type="date" class="input" /></div>
-            <div><label class="label">Next visit</label><input v-model="f.next_visit_date" type="date" class="input" /></div>
-          </div>
-          <p v-if="f.next_action && f.due_date" class="flex items-center gap-1.5 text-xs text-green-700">
-            <Icon name="check" :size="13" />A follow-up task will be created
-          </p>
         </div>
       </section>
     </form>

@@ -1,0 +1,23 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "KC Relationship Level",
+  "level": "Strong",
+  "modified": "2026-09-30 02:54:07.357553",
+  "name": "Strong"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Relationship Level",
+  "level": "Medium",
+  "modified": "2026-09-30 02:54:07.362262",
+  "name": "Medium"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Relationship Level",
+  "level": "Weak",
+  "modified": "2026-09-30 02:54:07.363299",
+  "name": "Weak"
+ }
+]

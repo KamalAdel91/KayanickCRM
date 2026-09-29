@@ -1,0 +1,16 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Outcome",
+  "modified": "2026-09-30 02:54:07.336551",
+  "name": "Positive",
+  "outcome": "Positive"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Outcome",
+  "modified": "2026-09-30 02:54:07.348022",
+  "name": "Negative",
+  "outcome": "Negative"
+ }
+]

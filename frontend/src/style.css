@@ -19,23 +19,24 @@
   .btn-subtle { @apply bg-gray-100 text-gray-800; }
   .input { @apply h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-[15px] text-gray-900 outline-none placeholder:text-gray-400 focus:border-gray-400 focus:ring-2 focus:ring-gray-100; }
   .label { @apply mb-1.5 block text-[13px] font-medium text-gray-600; }
-  .chip { @apply rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 transition; }
+  .chip { @apply inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 transition; }
   .chip-on { @apply border-gray-900 bg-gray-900 text-white; }
   .badge { @apply inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium; }
   .badge-red { @apply bg-red-50 text-red-700; }
   .badge-gray { @apply bg-gray-100 text-gray-600; }
   .badge-green { @apply bg-green-50 text-green-700; }
-  .section-label { @apply mb-2 px-1 text-[13px] font-medium text-gray-500; }
+  .badge-amber { @apply bg-amber-50 text-amber-700; }
+  .badge-blue { @apply bg-brand-50 text-brand-700; }
+  .section-label { @apply mb-2 flex items-center gap-1.5 px-1 text-[13px] font-medium text-gray-500; }
   .avatar { @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700; }
   .empty { @apply flex flex-col items-center gap-2 rounded-xl border border-dashed border-gray-200 bg-white py-8 text-sm text-gray-400; }
   .alert { @apply flex items-start gap-2 whitespace-pre-line rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700; }
   .toast { @apply flex items-center gap-2 rounded-lg bg-gray-900 px-3 py-2.5 text-sm text-white; }
-  .tab { @apply flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-gray-400; }
+  .tab { @apply relative flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium text-gray-400; }
   .tab-on { @apply text-gray-900; }
 }
 
+.tab-on::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; border-radius: 2px; background: #1f55e6; }
 .page-enter-active, .page-leave-active { transition: opacity .16s ease, transform .16s ease; }
 .page-enter-from { opacity: 0; transform: translateY(6px); }
 .page-leave-to { opacity: 0; }
-.tab { position: relative; }
-.tab-on::before { content: ""; position: absolute; top: 0; left: 30%; right: 30%; height: 2px; border-radius: 2px; background: #1f55e6; }

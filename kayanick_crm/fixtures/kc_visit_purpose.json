@@ -1,0 +1,51 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Purpose",
+  "modified": "2026-09-30 02:54:07.300867",
+  "name": "Follow-up",
+  "purpose": "Follow-up"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Purpose",
+  "modified": "2026-09-30 02:54:07.312525",
+  "name": "New Visit",
+  "purpose": "New Visit"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Purpose",
+  "modified": "2026-09-30 02:54:07.314572",
+  "name": "Order",
+  "purpose": "Order"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Purpose",
+  "modified": "2026-09-30 02:54:07.316636",
+  "name": "Clinical Case",
+  "purpose": "Clinical Case"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Purpose",
+  "modified": "2026-09-30 02:54:07.318467",
+  "name": "Collection",
+  "purpose": "Collection"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Purpose",
+  "modified": "2026-09-30 02:54:07.319825",
+  "name": "Training",
+  "purpose": "Training"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Visit Purpose",
+  "modified": "2026-09-30 02:54:07.321429",
+  "name": "Other",
+  "purpose": "Other"
+ }
+]

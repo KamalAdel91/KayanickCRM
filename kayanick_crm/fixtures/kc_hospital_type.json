@@ -1,0 +1,16 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "KC Hospital Type",
+  "hospital_type": "Private",
+  "modified": "2026-09-30 02:54:07.276792",
+  "name": "Private"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Hospital Type",
+  "hospital_type": "Public",
+  "modified": "2026-09-30 02:54:07.288024",
+  "name": "Public"
+ }
+]

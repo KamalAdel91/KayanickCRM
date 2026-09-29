@@ -257,30 +257,15 @@ app_license = "mit"
 # ignore_translatable_strings_from = []
 
 
-
-# --- kayanick row-level permissions (generated) ---
+# --- kayanick generated (do not edit by hand) ---
 permission_query_conditions = {
-    "KC Account": "kayanick_crm.kayanick_crm.doctype.kc_account.kc_account.get_permission_query_conditions",
-    "KC Doctor": "kayanick_crm.kayanick_crm.doctype.kc_doctor.kc_doctor.get_permission_query_conditions",
     "KC Visit": "kayanick_crm.kayanick_crm.doctype.kc_visit.kc_visit.get_permission_query_conditions",
-    "KC Task": "kayanick_crm.kayanick_crm.doctype.kc_task.kc_task.get_permission_query_conditions",
-    "KC Opportunity": "kayanick_crm.kayanick_crm.doctype.kc_opportunity.kc_opportunity.get_permission_query_conditions",
-    "KC Clinical Case": "kayanick_crm.kayanick_crm.doctype.kc_clinical_case.kc_clinical_case.get_permission_query_conditions",
-    "KC Doctor Plan": "kayanick_crm.kayanick_crm.doctype.kc_doctor_plan.kc_doctor_plan.get_permission_query_conditions",
 }
 
 has_permission = {
-    "KC Account": "kayanick_crm.kayanick_crm.doctype.kc_account.kc_account.has_permission",
-    "KC Doctor": "kayanick_crm.kayanick_crm.doctype.kc_doctor.kc_doctor.has_permission",
     "KC Visit": "kayanick_crm.kayanick_crm.doctype.kc_visit.kc_visit.has_permission",
-    "KC Task": "kayanick_crm.kayanick_crm.doctype.kc_task.kc_task.has_permission",
-    "KC Opportunity": "kayanick_crm.kayanick_crm.doctype.kc_opportunity.kc_opportunity.has_permission",
-    "KC Clinical Case": "kayanick_crm.kayanick_crm.doctype.kc_clinical_case.kc_clinical_case.has_permission",
-    "KC Doctor Plan": "kayanick_crm.kayanick_crm.doctype.kc_doctor_plan.kc_doctor_plan.has_permission",
 }
 
-
-# --- kayanick fixtures (generated) ---
 fixtures = [
     {"dt": "Role", "filters": [["name", "in", ["Sales Rep", "Sales Manager"]]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
@@ -288,10 +273,14 @@ fixtures = [
     {"dt": "Report", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Workspace Sidebar", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Desktop Icon", "filters": [["name", "=", "Kayanick CRM"]]},
+    "KC Area",
+    "KC Hospital Type",
+    "KC Visit Purpose",
+    "KC Visit Outcome",
+    "KC Relationship Level",
+    "KC Product",
 ]
 
-
-# --- kayanick mobile app route (generated) ---
 website_route_rules = [
     {"from_route": "/kayanick/<path:app_path>", "to_route": "kayanick"},
 ]

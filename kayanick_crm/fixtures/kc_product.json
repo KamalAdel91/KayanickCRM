@@ -1,0 +1,51 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "KC Product",
+  "modified": "2026-09-30 02:54:07.375103",
+  "name": "ShockFast",
+  "product_name": "ShockFast"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Product",
+  "modified": "2026-09-30 02:54:07.386635",
+  "name": "IVUS",
+  "product_name": "IVUS"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Product",
+  "modified": "2026-09-30 02:54:07.388306",
+  "name": "Pressure Wire",
+  "product_name": "Pressure Wire"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Product",
+  "modified": "2026-09-30 02:54:07.391053",
+  "name": "Safecut",
+  "product_name": "Safecut"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Product",
+  "modified": "2026-09-30 02:54:07.392749",
+  "name": "Microcatheters",
+  "product_name": "Microcatheters"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Product",
+  "modified": "2026-09-30 02:54:07.394424",
+  "name": "PTCA Wires",
+  "product_name": "PTCA Wires"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "KC Product",
+  "modified": "2026-09-30 02:54:07.396117",
+  "name": "CTO Wires",
+  "product_name": "CTO Wires"
+ }
+]
