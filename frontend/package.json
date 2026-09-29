@@ -1,0 +1,17 @@
+{
+  "name": "kayanick-crm-ui",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "build": "vite build --base=/assets/kayanick_crm/frontend/ && cp ../kayanick_crm/public/frontend/index.html ../kayanick_crm/www/kayanick.html"
+  },
+  "dependencies": { "vue": "^3.5.12", "vue-router": "^4.3.2" },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.3",
+    "vite": "^5.4.10"
+  }
+}

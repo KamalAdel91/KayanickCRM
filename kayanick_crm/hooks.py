@@ -289,3 +289,9 @@ fixtures = [
     {"dt": "Workspace Sidebar", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Desktop Icon", "filters": [["name", "=", "Kayanick CRM"]]},
 ]
+
+
+# --- kayanick mobile app route (generated) ---
+website_route_rules = [
+    {"from_route": "/kayanick/<path:app_path>", "to_route": "kayanick"},
+]
