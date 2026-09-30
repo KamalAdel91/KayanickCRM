@@ -32,14 +32,30 @@ def notify(user, subject, doctype=None, name=None, from_user=None):
 
 
 def _push(user, body, route):
+    """Returns the relay's answer ({"success": .., "message": ..}); failures go to the Error Log."""
     try:
         from frappe.push_notification import PushNotification
 
         push = PushNotification(PUSH_PROJECT)
-        if push.is_enabled():
-            push.send_notification_to_user(user, "Kayanick CRM", body, link=get_url(route))
+        if not push.is_enabled():
+            return {"success": False, "message": "Push Notification Relay is disabled"}
+        # same call as send_notification_to_user, but keeps the relay's message for diagnosis
+        res = push._send_post_request("notification_relay.api.send_notification.user", {
+            "user_id": user, "title": "Kayanick CRM", "body": frappe.utils.strip_html(body)[:1000],
+            "data": frappe.as_json({"click_action": get_url(route)}),
+        })
+        if not res.get("success"):
+            frappe.log_error(title="Kayanick push notification failed", message=frappe.as_json(res))
+        return res
     except Exception:
         frappe.log_error(title="Kayanick push notification failed")
+        return {"success": False, "message": frappe.get_traceback().splitlines()[-1]}
+
+
+@frappe.whitelist(methods=["POST"])
+def test_push():
+    """Sends a test push to the current user and returns what the relay said."""
+    return _push(frappe.session.user, "Test notification — push is working", APP_ROUTE + "/notifications")
 
 
 def managers_of(user):

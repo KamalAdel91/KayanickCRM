@@ -12,6 +12,14 @@ const error = ref("")
 const canPush = pushAvailable()
 const push = ref(pushOn())
 const pushBusy = ref(false)
+const testMsg = ref("")
+async function testPush() {
+  testMsg.value = "Sending…"
+  try {
+    const r = await call("kayanick_crm.notify.test_push", {}, { post: true })
+    testMsg.value = r && r.success ? "Sent — it should arrive in a few seconds" : "Relay said: " + ((r && r.message) || JSON.stringify(r))
+  } catch (e) { testMsg.value = e.message }
+}
 
 function ago(ts) {
   const s = Math.max(1, Math.round((Date.now() - new Date(String(ts).replace(" ", "T")).getTime()) / 1000))
@@ -76,6 +84,10 @@ onMounted(load)
           <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="push ? 'left-[22px]' : 'left-0.5'"></span>
         </span>
       </button>
+      <div v-if="canPush && push" class="flex items-center gap-2">
+        <button type="button" class="btn btn-subtle" @click="testPush"><Icon name="bell" :size="14" />Send test</button>
+        <span class="min-w-0 flex-1 text-xs text-gray-500">{{ testMsg }}</span>
+      </div>
 
       <template v-if="loading">
         <div v-for="i in 4" :key="i" class="card h-14 animate-pulse"></div>
