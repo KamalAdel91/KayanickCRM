@@ -24,11 +24,8 @@ async function registration() {
 }
 
 async function relayConfig() {
-  const res = await fetch(window.kc_push_relay + "/api/method/notification_relay.api.get_config?project_name=" + PROJECT)
-  if (!res.ok) throw new Error("Push relay is not reachable")
-  const j = await res.json()
-  const body = j.message || j
-  return { config: body.config, vapid: body.vapid_public_key || (body.config && body.config.vapid_public_key) }
+  // fetched through our server: the browser can't always call the relay directly
+  return call("kayanick_crm.notify.get_push_config")
 }
 
 async function messaging() {

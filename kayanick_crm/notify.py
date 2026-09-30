@@ -125,6 +125,34 @@ def _due_follow_ups(rep, day):
 # ---- mobile API ----
 
 @frappe.whitelist()
+def get_push_config():
+    """Firebase web config + VAPID key from the relay, fetched server-side (no browser CORS issues)."""
+    cached = frappe.cache.get_value("kc_push_config")
+    if cached:
+        return cached
+    import requests
+
+    relay = (frappe.conf.get("push_relay_server_url") or "").rstrip("/")
+    if not relay:
+        frappe.throw("Push relay is not configured on this site")
+    try:
+        r = requests.get(relay + "/api/method/notification_relay.api.get_config",
+                         params={"project_name": PUSH_PROJECT}, timeout=15)
+    except Exception as e:
+        frappe.throw("Push relay is not reachable: {0}".format(e))
+    if not r.ok:
+        frappe.throw("Push relay returned {0}: {1}".format(r.status_code, r.text[:200]))
+    j = r.json()
+    body = j.get("message") or j
+    config = body.get("config") or {}
+    out = {"config": config, "vapid": body.get("vapid_public_key") or config.get("vapid_public_key")}
+    if not out["vapid"]:
+        frappe.throw("Push relay did not return a VAPID key")
+    frappe.cache.set_value("kc_push_config", out, expires_in_sec=86400)
+    return out
+
+
+@frappe.whitelist()
 def get_notifications():
     filters, or_filters = _ours(frappe.session.user)
     rows = frappe.get_all("Notification Log", filters=filters, or_filters=or_filters,
