@@ -34,7 +34,7 @@ async function install() {
   <transition name="sheet-up">
     <div v-if="show" class="fixed inset-x-0 bottom-20 z-30 mx-auto max-w-lg px-3">
       <div class="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl">
-        <img src="/icon-192.png" class="h-11 w-11 shrink-0 rounded-xl" alt="" />
+        <img :src="'/kayanick-icon-192.png'" class="h-11 w-11 shrink-0 rounded-xl" alt="" />
         <div class="min-w-0 flex-1">
           <p class="text-sm font-semibold">Install Kayanick CRM</p>
           <p v-if="installEvent" class="text-xs text-gray-500">Add it to your home screen and open it like an app.</p>

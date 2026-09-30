@@ -57,7 +57,7 @@ onMounted(() => {
   <div>
     <header class="page-head">
       <div class="page-head-inner">
-        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">K</span>
+        <img :src="'/kayanick-icon-192.png'" class="h-8 w-8 rounded-lg border border-gray-200 object-contain" alt="Kayanick" />
         <div class="flex-1 leading-tight">
           <p class="text-[11px] font-medium uppercase tracking-wide text-gray-400">Kayanick CRM</p>
           <h1 class="text-base font-semibold">Today</h1>

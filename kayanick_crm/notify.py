@@ -21,17 +21,19 @@ def unread(user):
     return len(frappe.get_all("Notification Log", filters=filters, or_filters=or_filters, pluck="name"))
 
 
-def notify(user, subject, doctype=None, name=None, from_user=None):
+def notify(user, subject, doctype=None, name=None, from_user=None, title=None, body=None):
+    """subject: the in-app line; title/body: what the phone shows (defaults to the app name + subject)."""
     if not user or user in ("Guest", "Administrator"):
         return
     frappe.get_doc({
         "doctype": "Notification Log", "for_user": user, "type": "Alert", "subject": subject,
         "document_type": doctype, "document_name": name, "from_user": from_user,
     }).insert(ignore_permissions=True)
-    _push(user, subject, APP_ROUTE + (ROUTES.get(doctype, "/") + name if doctype and name else ""))
+    _push(user, body or subject, APP_ROUTE + (ROUTES.get(doctype, "/") + name if doctype and name else ""),
+          title=title, tag=name)
 
 
-def _push(user, body, route):
+def _push(user, body, route, title=None, tag=None):
     """Returns the relay's answer ({"success": .., "message": ..}); failures go to the Error Log."""
     try:
         from frappe.push_notification import PushNotification
@@ -41,8 +43,9 @@ def _push(user, body, route):
             return {"success": False, "message": "Push Notification Relay is disabled"}
         # same call as send_notification_to_user, but keeps the relay's message for diagnosis
         res = push._send_post_request("notification_relay.api.send_notification.user", {
-            "user_id": user, "title": "Kayanick CRM", "body": frappe.utils.strip_html(body)[:1000],
-            "data": frappe.as_json({"click_action": get_url(route)}),
+            "user_id": user, "title": title or "Kayanick CRM", "body": frappe.utils.strip_html(body)[:1000],
+            "data": frappe.as_json({"click_action": get_url(route), "title": title or "Kayanick CRM",
+                                    "body": frappe.utils.strip_html(body)[:1000], "tag": tag or ""}),
         })
         if not res.get("success"):
             frappe.log_error(title="Kayanick push notification failed", message=frappe.as_json(res))
@@ -55,7 +58,7 @@ def _push(user, body, route):
 @frappe.whitelist(methods=["POST"])
 def test_push():
     """Sends a test push to the current user and returns what the relay said."""
-    return _push(frappe.session.user, "Test notification — push is working", APP_ROUTE + "/notifications")
+    return _push(frappe.session.user, "Push is working", APP_ROUTE + "/notifications", title="🔔 Test notification")
 
 
 def managers_of(user):
@@ -88,18 +91,25 @@ def case_created(doc, method=None):
 def _visit_to_managers(name):
     v = frappe.get_doc("KC Visit", name)
     what = "an order expected" if v.order_expected else "a positive visit"
-    msg = "{0} logged {1} at {2}".format(get_fullname(v.sales_rep), what, v.hospital)
+    rep = get_fullname(v.sales_rep)
+    doctor = frappe.db.get_value("KC Doctor", v.doctor, "doctor_name") if v.doctor else ""
+    msg = "{0} logged {1} at {2}".format(rep, what, v.hospital)
+    title = "🛒 Order expected" if v.order_expected else "🟢 Positive visit"
+    body = " · ".join(x for x in (rep, v.hospital, doctor) if x)
     for m in managers_of(v.sales_rep):
-        notify(m, msg, "KC Visit", v.name, v.sales_rep)
+        notify(m, msg, "KC Visit", v.name, v.sales_rep, title=title, body=body)
 
 
 def _case_to_managers(name):
     c = frappe.get_doc("KC Case", name)
     when = "" if c.attended else " for " + getdate(c.case_date).strftime("%d %b")
     doctor = frappe.db.get_value("KC Doctor", c.doctor, "doctor_name") if c.doctor else ""
-    msg = "{0} added a case{1}: {2}{3}".format(get_fullname(c.sales_rep), when, c.hospital, " / " + doctor if doctor else "")
+    rep = get_fullname(c.sales_rep)
+    msg = "{0} added a case{1}: {2}{3}".format(rep, when, c.hospital, " / " + doctor if doctor else "")
+    title = "📅 Planned case · " + getdate(c.case_date).strftime("%d %b") if not c.attended else "🩺 New case"
+    body = " · ".join(x for x in (rep, c.hospital, doctor) if x)
     for m in managers_of(c.sales_rep):
-        notify(m, msg, "KC Case", c.name, c.sales_rep)
+        notify(m, msg, "KC Case", c.name, c.sales_rep, title=title, body=body)
 
 
 # ---- daily reminder (scheduler) ----
@@ -122,7 +132,8 @@ def morning_reminder():
         if overdue_cases:
             parts.append("{0} overdue case{1}".format(overdue_cases, "" if overdue_cases == 1 else "s"))
         if parts:
-            notify(rep, REMINDER_PREFIX + " " + ", ".join(parts) + ".")
+            notify(rep, REMINDER_PREFIX + " " + ", ".join(parts) + ".",
+                   title="☀️ Good morning", body="Today: " + ", ".join(parts))
 
 
 def _due_follow_ups(rep, day):

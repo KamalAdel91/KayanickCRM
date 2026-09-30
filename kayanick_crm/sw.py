@@ -7,7 +7,8 @@ from werkzeug.wrappers import Response
 from frappe.website.page_renderers.base_renderer import BaseRenderer
 
 SW_PATH = "kayanick-sw.js"
-ICON = "/assets/kayanick_crm/frontend/icon-192.png"
+ICON = "/kayanick-icon-192.png"
+BADGE = "/kayanick-badge.png"
 
 SCRIPT = """
 self.addEventListener("install", () => self.skipWaiting())
@@ -18,10 +19,14 @@ self.addEventListener("push", (e) => {
   try { p = e.data ? e.data.json() : {} } catch (err) { p = { data: { body: e.data && e.data.text() } } }
   const n = p.notification || {}
   const d = p.data || {}
-  const title = n.title || d.title || "Kayanick CRM"
-  const body = n.body || d.body || ""
+  const title = d.title || n.title || "Kayanick CRM"
+  const body = d.body || n.body || ""
   const link = d.click_action || n.click_action || (p.fcmOptions && p.fcmOptions.link) || "/KayanickCRM"
-  e.waitUntil(self.registration.showNotification(title, { body, icon: "%(icon)s", badge: "%(icon)s", data: { link } }))
+  const tag = d.tag || undefined
+  e.waitUntil(self.registration.showNotification(title, {
+    body, icon: "%(icon)s", badge: "%(badge)s", tag, renotify: !!tag, timestamp: Date.now(),
+    data: { link }, actions: [{ action: "open", title: "Open" }],
+  }))
 })
 
 self.addEventListener("notificationclick", (e) => {
@@ -34,7 +39,7 @@ self.addEventListener("notificationclick", (e) => {
     return self.clients.openWindow(link)
   }))
 })
-""" % {"icon": ICON}
+""" % {"icon": ICON, "badge": BADGE}
 
 
 class ServiceWorkerRenderer(BaseRenderer):

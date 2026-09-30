@@ -300,4 +300,4 @@ scheduler_events = {
     "cron": {"0 8 * * *": ["kayanick_crm.notify.morning_reminder"]},
 }
 
-page_renderer = ["kayanick_crm.sw.ServiceWorkerRenderer"]
+page_renderer = ["kayanick_crm.sw.ServiceWorkerRenderer", "kayanick_crm.branding.BrandingRenderer"]
