@@ -60,6 +60,7 @@ onMounted(load)
           <div class="px-4 py-3">
             <p class="text-xs text-gray-500">Customer</p>
             <p class="font-medium" dir="auto">{{ c.customer_name }}</p>
+            <p class="mt-0.5 flex items-center gap-1 text-xs text-gray-500"><Icon name="user" :size="12" />{{ c.rep_name }}</p>
           </div>
           <div class="flex items-center px-4 py-3">
             <div class="flex-1"><p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}</p></div>

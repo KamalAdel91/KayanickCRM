@@ -25,6 +25,13 @@ def _doctor_titles(names):
     return {r.name: r.doctor_name for r in rows}
 
 
+def full_names(users):
+    users = sorted({u for u in users if u})
+    if not users:
+        return {}
+    return {u.name: u.full_name or u.name for u in frappe.get_all("User", filters={"name": ["in", users]}, fields=["name", "full_name"])}
+
+
 def _count(filters):
     return len(frappe.get_list("KC Visit", filters=filters, pluck="name", limit_page_length=100000))
 
@@ -90,7 +97,8 @@ def get_today():
                                            pluck="name", limit_page_length=100000)),
         "cases_due": sum(1 for c in cases if getdate(c.case_date) <= day),
     }
-    return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "cases": cases, "recent": visits[:5]}
+    return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "cases": cases, "recent": visits[:5],
+            "unread": frappe.db.count("Notification Log", {"for_user": user, "read": 0})}
 
 
 @frappe.whitelist()
@@ -119,12 +127,14 @@ def get_doctors(hospital):
 @frappe.whitelist()
 def get_visits():
     rows = frappe.get_list(
-        "KC Visit", fields=["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome", "order_expected"],
+        "KC Visit", fields=["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome", "order_expected", "sales_rep"],
         order_by="visit_date desc, creation desc", limit_page_length=100,
     )
     titles = _doctor_titles([r.doctor for r in rows])
+    names = full_names([r.sales_rep for r in rows])
     for r in rows:
         r["doctor_title"] = titles.get(r.doctor, r.doctor)
+        r["rep_name"] = names.get(r.sales_rep, r.sales_rep)
     return rows
 
 

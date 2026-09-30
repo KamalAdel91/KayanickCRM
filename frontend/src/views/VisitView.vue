@@ -50,6 +50,7 @@ onMounted(async () => {
           <div class="px-4 py-3">
             <p class="font-medium" dir="auto">{{ v.hospital }}</p>
             <p class="text-sm text-gray-500" dir="auto">{{ v.doctor_title }}</p>
+            <p class="mt-0.5 flex items-center gap-1 text-xs text-gray-500"><Icon name="user" :size="12" />{{ v.sales_rep }}</p>
           </div>
           <div class="flex px-4 py-3">
             <div class="flex-1"><p class="text-xs text-gray-500">Date</p><p>{{ fmt(v.visit_date) }}</p></div>

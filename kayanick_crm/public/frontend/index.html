@@ -11,11 +11,11 @@
 <link rel="icon" href="/assets/kayanick_crm/frontend/icon-192.png" />
 <link rel="apple-touch-icon" href="/assets/kayanick_crm/frontend/icon-192.png" />
 <title>Kayanick CRM</title>
-  <script type="module" crossorigin src="/assets/kayanick_crm/frontend/assets/index-BLV5bWjx.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/kayanick_crm/frontend/assets/index-CfVSQfan.css">
+  <script type="module" crossorigin src="/assets/kayanick_crm/frontend/assets/index-DOi5tmSc.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/kayanick_crm/frontend/assets/index-DElT_eyr.css">
 </head>
 <body>
 <div id="app"></div>
-<script>window.csrf_token = "{{ csrf_token }}";</script>
+<script>window.csrf_token = "{{ csrf_token }}"; window.kc_push_relay = "{{ push_relay or '' }}"; window.kc_push_enabled = {{ push_enabled or 0 }};</script>
 </body>
 </html>

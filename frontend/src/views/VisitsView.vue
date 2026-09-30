@@ -36,7 +36,7 @@ onMounted(async () => {
           <span class="avatar">{{ initials(v.hospital) }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate font-medium" dir="auto">{{ v.hospital }}</p>
-            <p class="truncate text-xs text-gray-500" dir="auto">{{ [fmt(v.visit_date), v.doctor_title, v.visit_purpose].filter(Boolean).join(" · ") }}</p>
+            <p class="truncate text-xs text-gray-500" dir="auto">{{ [fmt(v.visit_date), v.doctor_title, v.rep_name].filter(Boolean).join(" · ") }}</p>
           </div>
           <span v-if="v.visit_outcome" class="badge" :class="outcomeBadge(v.visit_outcome)">{{ v.visit_outcome }}</span>
           <Icon name="chevron-right" :size="16" class="text-gray-300" />

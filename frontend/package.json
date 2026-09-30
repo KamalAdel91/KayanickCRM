@@ -6,7 +6,11 @@
   "scripts": {
     "build": "vite build --base=/assets/kayanick_crm/frontend/ && cp ../kayanick_crm/public/frontend/index.html ../kayanick_crm/www/kayanick.html"
   },
-  "dependencies": { "vue": "^3.5.12", "vue-router": "^4.3.2" },
+  "dependencies": {
+    "firebase": "^11.10.0",
+    "vue": "^3.5.12",
+    "vue-router": "^4.3.2"
+  },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.0",
     "autoprefixer": "^10.4.19",

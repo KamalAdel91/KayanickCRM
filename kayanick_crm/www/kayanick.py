@@ -21,5 +21,7 @@ def get_context(context):
     if not (ALLOWED & set(frappe.get_roles())):
         frappe.throw("You do not have permission to access Kayanick CRM", frappe.PermissionError)
     context.csrf_token = frappe.sessions.get_csrf_token()
+    context.push_relay = frappe.conf.get("push_relay_server_url") or ""
+    context.push_enabled = 1 if frappe.db.get_single_value("Push Notification Settings", "enable_push_notification_relay") else 0
     frappe.db.commit()  # nosemgrep
     return context

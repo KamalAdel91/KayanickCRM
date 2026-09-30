@@ -53,7 +53,7 @@ onMounted(() => {
           <span class="avatar">{{ initials(c.customer_name) }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate font-medium" dir="auto">{{ c.customer_name }}</p>
-            <p class="truncate text-xs text-gray-500">{{ [fmt(c.case_date), c.products.join(", "), c.name].filter(Boolean).join(" · ") }}</p>
+            <p class="truncate text-xs text-gray-500">{{ [fmt(c.case_date), c.rep_name, c.products.join(", ")].filter(Boolean).join(" · ") }}</p>
           </div>
           <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
           <Icon name="chevron-right" :size="16" class="text-gray-300" />

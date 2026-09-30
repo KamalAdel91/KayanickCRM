@@ -25,11 +25,15 @@ def search_customers(text=""):
 
 @frappe.whitelist()
 def get_cases():
-    rows = frappe.get_list("KC Case", fields=["name", "customer_name", "case_date", "attended", "creation"],
+    rows = frappe.get_list("KC Case", fields=["name", "customer_name", "case_date", "attended", "sales_rep", "creation"],
                            order_by="creation desc", limit_page_length=30)
+    from kayanick_crm.mobile import full_names
+
     products = _products([r.name for r in rows])
+    names = full_names([r.sales_rep for r in rows])
     for r in rows:
         r["products"] = products.get(r.name, [])
+        r["rep_name"] = names.get(r.sales_rep, r.sales_rep)
     return rows
 
 
@@ -54,6 +58,7 @@ def get_case(name):
     return {
         "name": doc.name, "customer": doc.customer, "customer_name": doc.customer_name,
         "case_date": doc.case_date, "attended": doc.attended, "notes": doc.notes, "sales_rep": doc.sales_rep,
+        "rep_name": frappe.utils.get_fullname(doc.sales_rep),
         "products": [p.product for p in doc.products],
         "attachments": attachments("KC Case", doc.name),
         "can_delete": bool(frappe.has_permission("KC Case", "delete", doc=doc)),

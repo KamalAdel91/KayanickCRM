@@ -290,3 +290,14 @@ website_route_rules = [
 ]
 
 after_migrate = ["kayanick_crm.setup.hide_extra_desktop_icons"]
+
+doc_events = {
+    "KC Visit": {"after_insert": "kayanick_crm.notify.visit_created"},
+    "KC Case": {"after_insert": "kayanick_crm.notify.case_created"},
+}
+
+scheduler_events = {
+    "cron": {"0 8 * * *": ["kayanick_crm.notify.morning_reminder"]},
+}
+
+page_renderer = ["kayanick_crm.sw.ServiceWorkerRenderer"]

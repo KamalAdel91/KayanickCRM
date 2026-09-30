@@ -63,6 +63,10 @@ onMounted(() => {
           <h1 class="text-base font-semibold">Today</h1>
         </div>
         <button class="btn btn-subtle w-9 px-0" aria-label="Refresh" @click="load"><Icon name="refresh" :size="16" /></button>
+        <router-link to="/notifications" class="btn btn-subtle relative w-9 px-0" aria-label="Notifications">
+          <Icon name="bell" :size="16" />
+          <span v-if="data && data.unread" class="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">{{ data.unread > 9 ? "9+" : data.unread }}</span>
+        </router-link>
         <span class="avatar bg-brand-50 text-brand-700">{{ userInitials }}</span>
       </div>
     </header>
