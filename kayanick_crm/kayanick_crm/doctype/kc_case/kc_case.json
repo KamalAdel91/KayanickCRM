@@ -21,7 +21,8 @@
    "options": "KC Hospital",
    "reqd": 1,
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "search_index": 1
   },
   {
    "fieldname": "doctor",
@@ -30,7 +31,8 @@
    "options": "KC Doctor",
    "reqd": 1,
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "search_index": 1
   },
   {
    "fieldname": "case_date",
@@ -38,7 +40,8 @@
    "label": "Case Date",
    "reqd": 1,
    "default": "Today",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "search_index": 1
   },
   {
    "fieldname": "attended",
@@ -60,7 +63,8 @@
    "options": "User",
    "reqd": 1,
    "default": "__user",
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "search_index": 1
   },
   {
    "fieldname": "sb_products",

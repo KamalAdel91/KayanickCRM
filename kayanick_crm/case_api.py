@@ -30,11 +30,15 @@ def decorate(rows):
 
 
 @frappe.whitelist()
-def get_cases(filters=None, limit=30):
-    filters = frappe.parse_json(filters) if filters else {}
-    filters = {k: v for k, v in filters.items() if k in ("hospital", "doctor")}
-    rows = frappe.get_list("KC Case", filters=filters, fields=CASE_FIELDS,
-                           order_by="case_date desc, creation desc", limit_page_length=min(frappe.utils.cint(limit) or 30, 200))
+def get_cases(args=None):
+    from kayanick_crm.mobile import list_filters, page_args
+
+    a, filters, or_filters = list_filters("case_date", args)
+    if a.get("attended") in (0, 1, "0", "1"):
+        filters.append(["attended", "=", frappe.utils.cint(a.attended)])
+    start, limit = page_args(a)
+    rows = frappe.get_list("KC Case", filters=filters, or_filters=or_filters, fields=CASE_FIELDS,
+                           order_by="case_date desc, creation desc", limit_start=start, limit_page_length=limit)
     return decorate(rows)
 
 

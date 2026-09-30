@@ -20,7 +20,8 @@
    "label": "Date",
    "reqd": 1,
    "default": "Today",
-   "in_list_view": 1
+   "in_list_view": 1,
+   "search_index": 1
   },
   {
    "fieldname": "sales_rep",
@@ -29,7 +30,8 @@
    "options": "User",
    "reqd": 1,
    "default": "__user",
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "search_index": 1
   },
   {
    "fieldname": "hospital",
@@ -38,7 +40,8 @@
    "options": "KC Hospital",
    "reqd": 1,
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "search_index": 1
   },
   {
    "fieldname": "doctor",
@@ -46,7 +49,8 @@
    "label": "Doctor",
    "options": "KC Doctor",
    "in_list_view": 1,
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "cb_1",
@@ -111,7 +115,8 @@
   {
    "fieldname": "next_visit_date",
    "fieldtype": "Date",
-   "label": "Next Visit Date"
+   "label": "Next Visit Date",
+   "search_index": 1
   },
   {
    "fieldname": "sb_check_in",

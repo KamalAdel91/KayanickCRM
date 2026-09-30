@@ -127,34 +127,75 @@ def get_profile(doctype, name):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     doc = frappe.get_doc(doctype, name)
     doc.check_permission("read")
-    from kayanick_crm.case_api import CASE_FIELDS, decorate
-
     key = "hospital" if doctype == "KC Hospital" else "doctor"
-    visits = frappe.get_list("KC Visit", filters={key: name},
-                             fields=["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome",
-                                     "order_expected", "sales_rep", "next_visit_date"],
-                             order_by="visit_date desc, creation desc", limit_page_length=100)
-    titles = _doctor_titles([v.doctor for v in visits])
-    names = full_names([v.sales_rep for v in visits])
-    for v in visits:
-        v["doctor_title"] = titles.get(v.doctor, v.doctor)
-        v["rep_name"] = names.get(v.sales_rep, v.sales_rep)
-    cases = decorate(frappe.get_list("KC Case", filters={key: name}, fields=CASE_FIELDS,
-                                     order_by="case_date desc, creation desc", limit_page_length=100))
+    counts = {
+        "visits": len(frappe.get_list("KC Visit", filters={key: name}, pluck="name", limit_page_length=100000)),
+        "cases": len(frappe.get_list("KC Case", filters={key: name}, pluck="name", limit_page_length=100000)),
+    }
     info = {"name": doc.name, "title": doc.get("hospital_name") or doc.get("doctor_name"),
             "last_visit": doc.last_visit, "next_visit": doc.next_visit, "customer": doc.get("customer")}
     if doctype == "KC Hospital":
         info.update(area=doc.area, hospital_type=doc.hospital_type)
     else:
         info.update(relationship_level=doc.relationship_level)
-    return {"info": info, "visits": visits, "cases": cases}
+    return {"info": info, "counts": counts}
+
+
+PAGE = 50
+
+
+def list_filters(date_field, args):
+    """Filters shared by the visits and cases lists. Row-level (team) permissions still apply on top."""
+    a = frappe._dict(frappe.parse_json(args) if isinstance(args, str) else (args or {}))
+    filters, or_filters = [], []
+    for key in ("hospital", "doctor", "sales_rep"):
+        if a.get(key):
+            filters.append([key, "=", a[key]])
+    if a.get("from_date"):
+        filters.append([date_field, ">=", a.from_date])
+    if a.get("to_date"):
+        filters.append([date_field, "<=", a.to_date])
+    text = (a.get("text") or "").strip()[:60]
+    if text:
+        doctors = frappe.get_all("KC Doctor", filters={"doctor_name": ["like", "%" + text + "%"]}, pluck="name", limit=300)
+        or_filters = [["hospital", "like", "%" + text + "%"]]
+        if doctors:
+            or_filters.append(["doctor", "in", doctors])
+    return a, filters, or_filters
+
+
+def page_args(a):
+    start = max(frappe.utils.cint(a.get("start")), 0)
+    limit = min(max(frappe.utils.cint(a.get("limit")) or PAGE, 1), 200)
+    return start, limit
 
 
 @frappe.whitelist()
-def get_visits():
+def get_team():
+    """Reps whose records the current user can see (for the rep filter). Empty for a plain rep."""
+    from kayanick_crm.perms import visible_reps
+
+    reps = visible_reps()
+    if reps is None:  # admin: everyone who has logged a visit or case
+        reps = set(frappe.get_all("KC Visit", pluck="sales_rep", distinct=True)) | \
+            set(frappe.get_all("KC Case", pluck="sales_rep", distinct=True))
+    reps = {r for r in reps if r}
+    if len(reps) <= 1:
+        return []
+    names = full_names(reps)
+    return sorted(({"user": u, "name": names.get(u, u)} for u in reps), key=lambda x: x["name"].lower())
+
+
+@frappe.whitelist()
+def get_visits(args=None):
+    a, filters, or_filters = list_filters("visit_date", args)
+    if a.get("outcome"):
+        filters.append(["visit_outcome", "=", a.outcome])
+    start, limit = page_args(a)
     rows = frappe.get_list(
         "KC Visit", fields=["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome", "order_expected", "sales_rep"],
-        order_by="visit_date desc, creation desc", limit_page_length=100,
+        filters=filters, or_filters=or_filters,
+        order_by="visit_date desc, creation desc", limit_start=start, limit_page_length=limit,
     )
     titles = _doctor_titles([r.doctor for r in rows])
     names = full_names([r.sales_rep for r in rows])

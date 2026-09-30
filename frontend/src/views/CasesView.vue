@@ -1,26 +1,21 @@
 <script setup>
-import { ref, onMounted } from "vue"
+import { ref, reactive, watch, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { call } from "../api"
 import { fmt, initials } from "../ui"
+import { usePaged } from "../paged"
 import Icon from "../components/Icon.vue"
+import FilterBar from "../components/FilterBar.vue"
 
 const route = useRoute()
 const router = useRouter()
-const rows = ref([])
-const loading = ref(true)
-const error = ref("")
+const f = reactive({ text: "", from_date: "", to_date: "", sales_rep: "", attended: "" })
+const { rows, loading, done, error, reload, more } = usePaged("kayanick_crm.case_api.get_cases", () => ({ ...f }))
+let timer = null
+watch(f, () => { clearTimeout(timer); timer = setTimeout(reload, 300) })
 const toast = ref(route.query.saved ? "Case " + route.query.saved + " saved" : "")
 
-async function load() {
-  loading.value = true
-  error.value = ""
-  try { rows.value = await call("kayanick_crm.case_api.get_cases") }
-  catch (e) { error.value = e.message }
-  finally { loading.value = false }
-}
 onMounted(() => {
-  load()
+  reload()
   if (toast.value) {
     router.replace({ query: {} })
     setTimeout(() => (toast.value = ""), 3500)
@@ -38,6 +33,7 @@ onMounted(() => {
     </header>
 
     <div class="wrap space-y-3 py-4">
+      <FilterBar v-model="f" kind="cases" />
       <div v-if="toast" class="toast"><Icon name="check" :size="16" />{{ toast }}</div>
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
 
@@ -45,10 +41,10 @@ onMounted(() => {
         <div v-for="i in 3" :key="i" class="card h-16 animate-pulse"></div>
       </template>
       <div v-else-if="!rows.length" class="empty">
-        <Icon name="cart" :size="24" /><p>No cases yet</p>
-        <router-link to="/case/new" class="btn btn-subtle mt-1">Create the first one</router-link>
+        <Icon name="cart" :size="24" /><p>No cases found</p>
       </div>
-      <div v-else class="card divide-y divide-gray-100">
+      <template v-else>
+      <div class="card divide-y divide-gray-100">
         <router-link v-for="c in rows" :key="c.name" :to="{ name: 'case-detail', params: { name: c.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
           <span class="avatar">{{ initials(c.hospital) }}</span>
           <div class="min-w-0 flex-1">
@@ -59,6 +55,9 @@ onMounted(() => {
           <Icon name="chevron-right" :size="16" class="text-gray-300" />
         </router-link>
       </div>
+      <button v-if="!done" type="button" class="btn btn-subtle w-full" :disabled="loading" @click="more">{{ loading ? "Loading…" : "Load more" }}</button>
+      <p v-else class="py-1 text-center text-xs text-gray-400">{{ rows.length }} case{{ rows.length === 1 ? "" : "s" }}</p>
+      </template>
     </div>
   </div>
 </template>

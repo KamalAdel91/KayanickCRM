@@ -4,12 +4,17 @@ import Icon from "./Icon.vue"
 
 const files = defineModel({ type: Array, default: () => [] })
 let seq = 0
+const MAX_MB = 10
 
 function add(e) {
+  const tooBig = []
   for (const file of e.target.files || []) {
+    // photos are shrunk before upload, so only other files are held to the limit
+    if (!file.type.startsWith("image/") && file.size > MAX_MB * 1048576) { tooBig.push(file.name); continue }
     files.value.push({ id: ++seq, file, preview: file.type.startsWith("image/") ? URL.createObjectURL(file) : "" })
   }
   e.target.value = ""
+  if (tooBig.length) alert("These files are larger than " + MAX_MB + " MB and were skipped:\n" + tooBig.join("\n"))
 }
 function remove(f) {
   if (f.preview) URL.revokeObjectURL(f.preview)
