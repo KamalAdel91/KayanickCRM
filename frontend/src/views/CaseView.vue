@@ -9,31 +9,17 @@ import FileList from "../components/FileList.vue"
 const route = useRoute()
 const router = useRouter()
 const c = ref(null)
-const error = ref(route.query.error || "")
-const busy = ref(false)
-const BADGE = { Draft: "badge-amber", Submitted: "badge-green", Cancelled: "badge-red" }
+const error = ref("")
 
 async function load() {
   try { c.value = await call("kayanick_crm.case_api.get_case", { name: route.params.name }) }
   catch (e) { error.value = e.message }
 }
-async function makeOrder() {
-  busy.value = true
-  error.value = ""
-  try {
-    const so = await call("kayanick_crm.case_api.make_sales_order", { case: c.value.name }, { post: true })
-    router.push({ name: "cases", query: { so } })
-  } catch (e) { error.value = e.message }
-  finally { busy.value = false }
-}
 function back() {
   if (window.history.length > 1) router.back()
   else router.push("/cases")
 }
-onMounted(() => {
-  if (route.query.error) router.replace({ query: {} })
-  load()
-})
+onMounted(load)
 </script>
 
 <template>
@@ -42,7 +28,6 @@ onMounted(() => {
       <div class="page-head-inner">
         <button type="button" class="btn btn-subtle w-9 px-0" aria-label="Back" @click="back"><Icon name="chevron-left" :size="18" /></button>
         <h1 class="page-title flex-1 truncate">{{ route.params.name }}</h1>
-        <span v-if="c" class="badge" :class="BADGE[c.so_status] || 'badge-gray'">{{ c.so_status }}</span>
       </div>
     </header>
 
@@ -56,9 +41,8 @@ onMounted(() => {
             <p class="text-xs text-gray-500">Customer</p>
             <p class="font-medium" dir="auto">{{ c.customer_name }}</p>
           </div>
-          <div class="flex px-4 py-3">
-            <div class="flex-1"><p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}</p></div>
-            <div class="flex-1"><p class="text-xs text-gray-500">Sales Order</p><p>{{ c.sales_order || "—" }}</p></div>
+          <div class="px-4 py-3">
+            <p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}</p>
           </div>
         </div>
 
@@ -85,9 +69,6 @@ onMounted(() => {
           <div class="card p-4"><FileList :files="c.attachments" /></div>
         </section>
 
-        <button v-if="c.can_order" type="button" class="btn btn-primary h-11 w-full" :disabled="busy" @click="makeOrder">
-          {{ busy ? "Creating…" : "Create Sales Order" }}
-        </button>
       </template>
     </div>
   </div>

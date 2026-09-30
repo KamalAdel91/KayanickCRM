@@ -10,8 +10,7 @@ const router = useRouter()
 const rows = ref([])
 const loading = ref(true)
 const error = ref("")
-const toast = ref(route.query.so ? "Sales Order " + route.query.so + " created as Draft" : "")
-const BADGE = { Draft: "badge-amber", Submitted: "badge-green", Cancelled: "badge-red" }
+const toast = ref(route.query.saved ? "Case " + route.query.saved + " saved" : "")
 
 async function load() {
   loading.value = true
@@ -54,9 +53,8 @@ onMounted(() => {
           <span class="avatar">{{ initials(c.customer_name) }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate font-medium" dir="auto">{{ c.customer_name }}</p>
-            <p class="truncate text-xs text-gray-500">{{ fmt(c.case_date) }} · {{ c.items }} item{{ c.items === 1 ? "" : "s" }} · {{ c.sales_order || c.name }}</p>
+            <p class="truncate text-xs text-gray-500">{{ fmt(c.case_date) }} · {{ c.items }} item{{ c.items === 1 ? "" : "s" }} · {{ c.name }}</p>
           </div>
-          <span class="badge" :class="BADGE[c.so_status] || 'badge-gray'">{{ c.so_status }}</span>
           <Icon name="chevron-right" :size="16" class="text-gray-300" />
         </router-link>
       </div>

@@ -6,7 +6,6 @@ Sales Person below his node(s) in the tree. A Sales Rep sees only himself. Syste
 import frappe
 
 ADMIN_ROLES = {"System Manager"}
-LOCK_PTYPES = {"write", "delete", "cancel", "submit", "amend"}
 
 
 def _is_admin(user):
@@ -74,6 +73,4 @@ def case_has_permission(doc, user=None, permission_type=None):
     user = user or frappe.session.user
     if permission_type == "create":
         return True
-    if permission_type in LOCK_PTYPES and doc.get("sales_order") and not _is_admin(user):
-        return False  # a case is frozen once its Sales Order exists
     return _allowed(doc, user)

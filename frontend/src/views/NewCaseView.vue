@@ -75,18 +75,11 @@ async function save() {
         customer: f.customer.name, case_date: f.case_date, notes: f.notes,
         items: f.items.map((i) => ({ item_code: i.item_code, qty: Number(i.qty) })),
       }),
-      make_order: 0,
     }, { post: true })
-    // files go on the case before the order, because the case is locked once the order exists
     const failed = attachments.value.length ? await uploadFiles("KC Case", r.case, attachments.value) : []
-    if (failed.length) alert("These files failed to upload:\n" + failed.join("\n"))
+    if (failed.length) alert("Case saved, but these files failed to upload:\n" + failed.join("\n"))
     confirming.value = false
-    try {
-      const so = await call("kayanick_crm.case_api.make_sales_order", { case: r.case }, { post: true })
-      router.push({ name: "cases", query: { so } })
-    } catch (e) {
-      router.push({ name: "case-detail", params: { name: r.case }, query: { error: e.message } })
-    }
+    router.push({ name: "cases", query: { saved: r.case } })
   } catch (e) {
     confirming.value = false
     error.value = e.message
@@ -157,13 +150,13 @@ async function save() {
     <div class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">
       <div class="wrap py-3">
         <button type="button" class="btn btn-primary h-11 w-full text-[15px]" :disabled="!canSave" @click="askSave">
-          {{ saving ? (attachments.length ? "Creating & uploading…" : "Creating…") : "Create Sales Order" }}
+          {{ saving ? (attachments.length ? "Saving & uploading…" : "Saving…") : "Save case" }}
         </button>
       </div>
     </div>
 
-    <ConfirmSheet v-model:open="confirming" title="Create this Sales Order?" :rows="summary" confirm-text="Create order"
-      note="The case is locked once the Sales Order is created." :busy="saving" @confirm="save" />
+    <ConfirmSheet v-model:open="confirming" title="Save this case?" :rows="summary" confirm-text="Save case"
+      :busy="saving" @confirm="save" />
     <PickerSheet v-model:open="customerOpen" title="Choose customer" placeholder="Search customers"
       :fetcher="fetchCustomers" @pick="(r) => (f.customer = r.raw)" />
     <PickerSheet v-model:open="itemOpen" title="Add items" placeholder="Search items" multi :selected="selectedCodes"

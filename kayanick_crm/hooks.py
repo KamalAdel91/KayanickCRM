@@ -1,7 +1,7 @@
 app_name = "kayanick_crm"
 app_title = "Kayanick CRM"
 app_publisher = "Kamal Adel"
-app_description = "Field sales CRM for Kayanick: visits, cases and draft sales orders, with a mobile web app"
+app_description = "Field sales CRM for Kayanick: hospital visits and customer cases, with a mobile web app"
 app_email = "Kamal.adel@outlook.com"
 app_license = "mit"
 
@@ -270,7 +270,6 @@ has_permission = {
 }
 
 fixtures = [
-    {"dt": "Custom Field", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Role", "filters": [["name", "=", "Sales Rep"]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Dashboard Chart", "filters": [["module", "=", "KAYANICK CRM"]]},
@@ -289,3 +288,5 @@ website_route_rules = [
     {"from_route": "/KayanickCRM/<path:app_path>", "to_route": "kayanick"},
     {"from_route": "/kayanick/<path:app_path>", "to_route": "kayanick"},
 ]
+
+after_migrate = ["kayanick_crm.setup.hide_extra_desktop_icons"]
