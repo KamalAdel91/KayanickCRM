@@ -6,6 +6,19 @@ from frappe.utils import get_fullname, get_url, getdate, today
 PUSH_PROJECT = "frappe"  # a project registered on Frappe's relay server
 APP_ROUTE = "/KayanickCRM"
 ROUTES = {"KC Visit": "/visits/", "KC Case": "/case/"}
+REMINDER_PREFIX = "Good morning! You have"
+
+
+def _ours(user, **extra):
+    """Only this app's notifications: linked to a visit/case, or the daily reminder."""
+    filters = {"for_user": user, **extra}
+    or_filters = [["document_type", "in", list(ROUTES)], ["subject", "like", REMINDER_PREFIX + "%"]]
+    return filters, or_filters
+
+
+def unread(user):
+    filters, or_filters = _ours(user, read=0)
+    return len(frappe.get_all("Notification Log", filters=filters, or_filters=or_filters, pluck="name"))
 
 
 def notify(user, subject, doctype=None, name=None, from_user=None):
@@ -92,7 +105,7 @@ def morning_reminder():
         if overdue_cases:
             parts.append("{0} overdue case{1}".format(overdue_cases, "" if overdue_cases == 1 else "s"))
         if parts:
-            notify(rep, "Good morning! You have " + ", ".join(parts) + ".")
+            notify(rep, REMINDER_PREFIX + " " + ", ".join(parts) + ".")
 
 
 def _due_follow_ups(rep, day):
@@ -113,7 +126,8 @@ def _due_follow_ups(rep, day):
 
 @frappe.whitelist()
 def get_notifications():
-    rows = frappe.get_all("Notification Log", filters={"for_user": frappe.session.user},
+    filters, or_filters = _ours(frappe.session.user)
+    rows = frappe.get_all("Notification Log", filters=filters, or_filters=or_filters,
                           fields=["name", "subject", "document_type", "document_name", "read", "creation", "from_user"],
                           order_by="creation desc", limit_page_length=50)
     for r in rows:
@@ -124,14 +138,14 @@ def get_notifications():
 
 @frappe.whitelist()
 def unread_count():
-    return frappe.db.count("Notification Log", {"for_user": frappe.session.user, "read": 0})
+    return unread(frappe.session.user)
 
 
 @frappe.whitelist(methods=["POST"])
 def mark_read(name=None):
-    filters = {"for_user": frappe.session.user, "read": 0}
+    filters, or_filters = _ours(frappe.session.user, read=0)
     if name:
         filters["name"] = name
-    for n in frappe.get_all("Notification Log", filters=filters, pluck="name"):
+    for n in frappe.get_all("Notification Log", filters=filters, or_filters=or_filters, pluck="name"):
         frappe.db.set_value("Notification Log", n, "read", 1, update_modified=False)
     return "ok"

@@ -4,6 +4,8 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, get_first_day, get_fullname, get_last_day, getdate, now, today
 
+from kayanick_crm.notify import unread
+
 VISIT_FIELDS = (
     "hospital", "doctor", "visit_purpose", "visit_outcome", "relationship_level",
     "notes", "next_action", "next_visit_date", "visit_date", "geolocation",
@@ -98,7 +100,7 @@ def get_today():
         "cases_due": sum(1 for c in cases if getdate(c.case_date) <= day),
     }
     return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "cases": cases, "recent": visits[:5],
-            "unread": frappe.db.count("Notification Log", {"for_user": user, "read": 0})}
+            "unread": unread(user)}
 
 
 @frappe.whitelist()
