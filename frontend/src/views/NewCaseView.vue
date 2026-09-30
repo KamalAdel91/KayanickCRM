@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed } from "vue"
+import { ref, reactive, computed, onMounted, watch } from "vue"
 import { useRouter } from "vue-router"
 import { call } from "../api"
 import { localToday } from "../ui"
@@ -11,39 +11,31 @@ import ConfirmSheet from "../components/ConfirmSheet.vue"
 import { uploadFiles } from "../upload"
 
 const router = useRouter()
-const f = reactive({ customer: null, case_date: localToday(), notes: "", items: [] })
+const f = reactive({ customer: null, case_date: localToday(), attended: true, notes: "", products: [] })
+const productOptions = ref([])
+watch(() => f.case_date, (d) => { f.attended = !!d && d <= localToday() })
 const sheet = ref("")
 const saving = ref(false)
 const attachments = ref([])
 const confirming = ref(false)
 const error = ref("")
 
-const totalQty = computed(() => f.items.reduce((s, i) => s + (Number(i.qty) || 0), 0))
-const canSave = computed(() => f.customer && f.items.length && !saving.value)
-const selectedCodes = computed(() => f.items.map((i) => i.item_code))
+const canSave = computed(() => f.customer && !saving.value)
 const customerOpen = computed({ get: () => sheet.value === "customer", set: (v) => (sheet.value = v ? "customer" : "") })
-const itemOpen = computed({ get: () => sheet.value === "item", set: (v) => (sheet.value = v ? "item" : "") })
 
 async function fetchCustomers(text) {
   const r = await call("kayanick_crm.case_api.search_customers", { text })
   return r.map((c) => ({ value: c.name, label: c.customer_name, sub: [c.name !== c.customer_name ? c.name : "", c.territory].filter(Boolean).join(" · "), raw: c }))
 }
-async function fetchItems(text) {
-  const r = await call("kayanick_crm.case_api.search_items", { text })
-  return r.map((i) => ({ value: i.name, label: i.item_name, sub: [i.name !== i.item_name ? i.name : "", i.stock_uom].filter(Boolean).join(" · "), raw: i }))
+function toggleProduct(p) {
+  const i = f.products.indexOf(p)
+  if (i >= 0) f.products.splice(i, 1)
+  else f.products.push(p)
 }
-function addItem(r) {
-  const i = r.raw
-  const row = f.items.find((x) => x.item_code === i.name)
-  if (row) row.qty = Number(row.qty) + 1
-  else f.items.push({ item_code: i.name, item_name: i.item_name, uom: i.stock_uom, qty: 1 })
-}
-function removeItem(r) {
-  const row = f.items.find((x) => x.item_code === r.value)
-  if (row) remove(row)
-}
-function step(row, d) { row.qty = Math.max(1, (Number(row.qty) || 0) + d) }
-function remove(row) { f.items.splice(f.items.indexOf(row), 1) }
+onMounted(async () => {
+  try { productOptions.value = (await call("kayanick_crm.mobile.get_options")).products }
+  catch (e) { error.value = e.message }
+})
 function back() {
   if (window.history.length > 1) router.back()
   else router.push("/cases")
@@ -52,7 +44,8 @@ function back() {
 const summary = computed(() => [
   { label: "Customer", value: f.customer ? f.customer.customer_name : "" },
   { label: "Case date", value: f.case_date },
-  { label: "Items", value: f.items.map((i) => i.qty + " × " + i.item_name).join("\n") },
+  { label: "Status", value: f.attended ? "Attended" : "Planned (follow-up)" },
+  { label: "Products", value: f.products.join(", ") },
   { label: "Notes", value: f.notes },
   { label: "Attachments", value: attachments.value.length ? String(attachments.value.length) : "" },
 ])
@@ -60,20 +53,18 @@ const summary = computed(() => [
 function askSave() {
   error.value = ""
   if (!f.customer) { error.value = "Choose a customer first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
-  if (!f.items.length) { error.value = "Add at least one item"; return }
   confirming.value = true
 }
 
 async function save() {
   error.value = ""
   if (!f.customer) { error.value = "Choose a customer first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
-  if (!f.items.length) { error.value = "Add at least one item"; return }
   saving.value = true
   try {
     const r = await call("kayanick_crm.case_api.create_case", {
       payload: JSON.stringify({
-        customer: f.customer.name, case_date: f.case_date, notes: f.notes,
-        items: f.items.map((i) => ({ item_code: i.item_code, qty: Number(i.qty) })),
+        customer: f.customer.name, case_date: f.case_date, attended: f.attended, notes: f.notes,
+        products: f.products,
       }),
     }, { post: true })
     const failed = attachments.value.length ? await uploadFiles("KC Case", r.case, attachments.value) : []
@@ -109,27 +100,26 @@ async function save() {
             <label class="label">Case date</label>
             <input v-model="f.case_date" type="date" class="input" />
           </div>
+          <button type="button" class="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5" @click="f.attended = !f.attended">
+            <span class="text-left">
+              <span class="block text-sm font-medium">Attended</span>
+              <span class="block text-xs text-gray-400">{{ f.attended ? "Case is done" : "Planned — shows in Today until marked attended" }}</span>
+            </span>
+            <span class="relative h-6 w-11 shrink-0 rounded-full transition" :class="f.attended ? 'bg-brand-600' : 'bg-gray-200'">
+              <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="f.attended ? 'left-[22px]' : 'left-0.5'"></span>
+            </span>
+          </button>
         </div>
       </section>
 
       <section>
-        <p class="section-label"><Icon name="clipboard" :size="14" />Items <span v-if="f.items.length" class="text-gray-400">· {{ f.items.length }} lines · {{ totalQty }} pcs</span></p>
-        <div class="card space-y-3 p-4">
-          <button type="button" class="btn btn-subtle w-full" @click="sheet = 'item'"><Icon name="plus" :size="16" />Add items</button>
-          <p v-if="!f.items.length" class="py-2 text-center text-sm text-gray-400">No items yet</p>
-          <div v-else class="divide-y divide-gray-100 rounded-lg border border-gray-200">
-            <div v-for="row in f.items" :key="row.item_code" class="flex items-center gap-3 px-3 py-2.5">
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium" dir="auto">{{ row.item_name }}</p>
-                <p class="truncate text-xs text-gray-400">{{ row.item_code }} · {{ row.uom }}</p>
-              </div>
-              <div class="flex items-center rounded-lg border border-gray-200">
-                <button type="button" class="h-8 w-8 text-lg text-gray-600" @click="step(row, -1)">−</button>
-                <input v-model="row.qty" type="number" min="1" inputmode="decimal" class="h-8 w-12 border-x border-gray-200 text-center text-sm outline-none" />
-                <button type="button" class="h-8 w-8 text-lg text-gray-600" @click="step(row, 1)">+</button>
-              </div>
-              <button type="button" class="p-1 text-gray-400" aria-label="Remove" @click="remove(row)"><Icon name="x" :size="16" /></button>
-            </div>
+        <p class="section-label"><Icon name="clipboard" :size="14" />Products<span v-if="f.products.length" class="text-gray-400">· {{ f.products.length }}</span></p>
+        <div class="card p-4">
+          <div class="flex flex-wrap gap-2">
+            <button v-for="p in productOptions" :key="p" type="button" class="chip"
+              :class="f.products.includes(p) ? 'border-brand-600 bg-brand-50 text-brand-700' : ''" @click="toggleProduct(p)">
+              <Icon v-if="f.products.includes(p)" name="check" :size="13" />{{ p }}
+            </button>
           </div>
         </div>
       </section>
@@ -159,7 +149,5 @@ async function save() {
       :busy="saving" @confirm="save" />
     <PickerSheet v-model:open="customerOpen" title="Choose customer" placeholder="Search customers"
       :fetcher="fetchCustomers" @pick="(r) => (f.customer = r.raw)" />
-    <PickerSheet v-model:open="itemOpen" title="Add items" placeholder="Search items" multi :selected="selectedCodes"
-      :fetcher="fetchItems" @pick="addItem" @unpick="removeItem" />
   </div>
 </template>

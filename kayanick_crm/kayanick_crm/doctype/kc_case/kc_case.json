@@ -40,6 +40,14 @@
    "in_list_view": 1
   },
   {
+   "fieldname": "attended",
+   "fieldtype": "Check",
+   "label": "Attended",
+   "default": "0",
+   "in_list_view": 1,
+   "description": "Leave unticked for a planned case; it shows in the follow-ups until it is marked attended"
+  },
+  {
    "fieldname": "cb_1",
    "fieldtype": "Column Break",
    "label": "Cb 1"
@@ -54,16 +62,15 @@
    "in_standard_filter": 1
   },
   {
-   "fieldname": "sb_items",
+   "fieldname": "sb_products",
    "fieldtype": "Section Break",
-   "label": "Items"
+   "label": "Products"
   },
   {
-   "fieldname": "items",
-   "fieldtype": "Table",
-   "label": "Items",
-   "options": "KC Case Item",
-   "reqd": 1
+   "fieldname": "products",
+   "fieldtype": "Table MultiSelect",
+   "label": "Products",
+   "options": "KC Case Product"
   },
   {
    "fieldname": "notes",
@@ -76,10 +83,11 @@
   "customer",
   "customer_name",
   "case_date",
+  "attended",
   "cb_1",
   "sales_rep",
-  "sb_items",
-  "items",
+  "sb_products",
+  "products",
   "notes"
  ],
  "permissions": [

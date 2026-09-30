@@ -11,6 +11,17 @@ const router = useRouter()
 const v = ref(null)
 const error = ref("")
 
+const deleting = ref(false)
+async function remove() {
+  if (!window.confirm(`Delete ${route.params.name}? This can't be undone.`)) return
+  deleting.value = true
+  error.value = ""
+  try {
+    await call("kayanick_crm.mobile.delete_record", { doctype: "KC Visit", name: route.params.name }, { post: true })
+    router.replace("/visits")
+  } catch (e) { error.value = e.message; window.scrollTo({ top: 0, behavior: "smooth" }) }
+  finally { deleting.value = false }
+}
 function back() {
   if (window.history.length > 1) router.back()
   else router.push("/visits")
@@ -69,6 +80,10 @@ onMounted(async () => {
           <p class="section-label"><Icon name="paperclip" :size="14" />Attachments · {{ v.attachments.length }}</p>
           <div class="card p-4"><FileList :files="v.attachments" /></div>
         </section>
+
+        <button v-if="v.can_delete" type="button" class="btn h-11 w-full border border-red-200 bg-red-50 text-red-700" :disabled="deleting" @click="remove">
+          {{ deleting ? "Deleting…" : "Delete visit" }}
+        </button>
       </template>
     </div>
   </div>

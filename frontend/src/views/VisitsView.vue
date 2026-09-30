@@ -17,14 +17,20 @@ onMounted(async () => {
 <template>
   <div>
     <header class="page-head">
-      <div class="page-head-inner"><h1 class="page-title flex-1">Visits</h1></div>
+      <div class="page-head-inner">
+        <h1 class="page-title flex-1">Visits</h1>
+        <router-link to="/visit" class="btn btn-primary"><Icon name="plus" :size="15" />New visit</router-link>
+      </div>
     </header>
     <div class="wrap space-y-3 py-4">
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
       <template v-if="loading">
         <div v-for="i in 4" :key="i" class="card h-16 animate-pulse"></div>
       </template>
-      <div v-else-if="!rows.length" class="empty"><Icon name="clipboard" :size="24" /><p>No visits yet</p></div>
+      <div v-else-if="!rows.length" class="empty">
+        <Icon name="clipboard" :size="24" /><p>No visits yet</p>
+        <router-link to="/visit" class="btn btn-subtle mt-1">Log the first one</router-link>
+      </div>
       <div v-else class="card divide-y divide-gray-100">
         <router-link v-for="v in rows" :key="v.name" :to="{ name: 'visit-detail', params: { name: v.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
           <span class="avatar">{{ initials(v.hospital) }}</span>

@@ -15,6 +15,26 @@ async function load() {
   try { c.value = await call("kayanick_crm.case_api.get_case", { name: route.params.name }) }
   catch (e) { error.value = e.message }
 }
+const deleting = ref(false)
+const marking = ref(false)
+async function toggleAttended() {
+  marking.value = true
+  error.value = ""
+  try {
+    c.value.attended = await call("kayanick_crm.case_api.set_attended", { name: c.value.name, attended: c.value.attended ? 0 : 1 }, { post: true })
+  } catch (e) { error.value = e.message }
+  finally { marking.value = false }
+}
+async function remove() {
+  if (!window.confirm(`Delete ${route.params.name}? This can't be undone.`)) return
+  deleting.value = true
+  error.value = ""
+  try {
+    await call("kayanick_crm.mobile.delete_record", { doctype: "KC Case", name: route.params.name }, { post: true })
+    router.replace("/cases")
+  } catch (e) { error.value = e.message; window.scrollTo({ top: 0, behavior: "smooth" }) }
+  finally { deleting.value = false }
+}
 function back() {
   if (window.history.length > 1) router.back()
   else router.push("/cases")
@@ -41,21 +61,16 @@ onMounted(load)
             <p class="text-xs text-gray-500">Customer</p>
             <p class="font-medium" dir="auto">{{ c.customer_name }}</p>
           </div>
-          <div class="px-4 py-3">
-            <p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}</p>
+          <div class="flex items-center px-4 py-3">
+            <div class="flex-1"><p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}</p></div>
+            <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
           </div>
         </div>
 
-        <section>
-          <p class="section-label"><Icon name="clipboard" :size="14" />Items · {{ c.items.length }}</p>
-          <div class="card divide-y divide-gray-100">
-            <div v-for="i in c.items" :key="i.item_code" class="flex items-center gap-3 px-4 py-2.5">
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium" dir="auto">{{ i.item_name }}</p>
-                <p class="truncate text-xs text-gray-400">{{ i.item_code }}</p>
-              </div>
-              <span class="text-sm font-semibold">{{ i.qty }} <span class="text-xs font-normal text-gray-400">{{ i.uom }}</span></span>
-            </div>
+        <section v-if="c.products.length">
+          <p class="section-label"><Icon name="clipboard" :size="14" />Products</p>
+          <div class="card flex flex-wrap gap-2 p-4">
+            <span v-for="p in c.products" :key="p" class="badge badge-blue">{{ p }}</span>
           </div>
         </section>
 
@@ -69,6 +84,12 @@ onMounted(load)
           <div class="card p-4"><FileList :files="c.attachments" /></div>
         </section>
 
+        <button v-if="c.can_edit" type="button" class="btn h-11 w-full" :class="c.attended ? 'btn-subtle' : 'btn-primary'" :disabled="marking" @click="toggleAttended">
+          <Icon :name="c.attended ? 'calendar' : 'check'" :size="16" />{{ c.attended ? "Mark as planned" : "Mark as attended" }}
+        </button>
+        <button v-if="c.can_delete" type="button" class="btn h-11 w-full border border-red-200 bg-red-50 text-red-700" :disabled="deleting" @click="remove">
+          {{ deleting ? "Deleting…" : "Delete case" }}
+        </button>
       </template>
     </div>
   </div>

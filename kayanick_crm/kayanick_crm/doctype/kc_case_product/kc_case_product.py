@@ -1,5 +1,5 @@
 from frappe.model.document import Document
 
 
-class KCCaseItem(Document):
+class KCCaseProduct(Document):
     pass

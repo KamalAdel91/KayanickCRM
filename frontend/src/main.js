@@ -1,6 +1,7 @@
 import { createApp } from "vue"
 import { createRouter, createWebHistory } from "vue-router"
 import "./style.css"
+import "./install"
 import App from "./App.vue"
 import Today from "./views/TodayView.vue"
 import NewVisit from "./views/NewVisitView.vue"

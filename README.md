@@ -3,7 +3,7 @@
 Field sales CRM for Kayanick, built on Frappe / ERPNext v16.
 
 - **Visits**: hospital + doctor visits with purpose, outcome, relationship level, products discussed, next action and GPS check-in.
-- **Cases**: customer + items with quantities, notes and attachments (customers and items come from ERPNext).
+- **Cases**: ERPNext customer + products (same product list as visits), notes and attachments.
 - **Mobile web app** at `/KayanickCRM` (installable to the home screen).
 - **Team visibility** from the ERPNext **Sales Person** tree: a Sales Manager sees his own records and everyone below him; a Sales Rep sees only his own; System Manager sees all.
 

@@ -33,6 +33,11 @@ async function load() {
   catch (e) { error.value = e.message }
   finally { loading.value = false }
 }
+function caseWhen(c) {
+  if (c.is_overdue) return "Overdue"
+  if (c.is_today) return "Today"
+  return fmt(c.case_date)
+}
 function logVisit(v) {
   const query = {}
   if (v && v.hospital) query.hospital = v.hospital
@@ -100,6 +105,19 @@ onMounted(() => {
         </div>
       </div>
 
+      <div class="grid grid-cols-2 gap-2">
+        <router-link to="/cases" class="card p-3">
+          <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-50 text-violet-600"><Icon name="cart" :size="15" /></span>
+          <p class="mt-2 text-xl font-semibold">{{ data ? data.stats.month_cases : "–" }}</p>
+          <p class="text-xs text-gray-500">Cases this month</p>
+        </router-link>
+        <div class="card p-3">
+          <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><Icon name="calendar" :size="15" /></span>
+          <p class="mt-2 text-xl font-semibold" :class="data && data.stats.cases_due ? 'text-red-600' : ''">{{ data ? data.stats.cases_due : "–" }}</p>
+          <p class="text-xs text-gray-500">Cases due</p>
+        </div>
+      </div>
+
       <template v-if="loading && !data">
         <div v-for="i in 3" :key="i" class="card h-20 animate-pulse"></div>
       </template>
@@ -119,6 +137,21 @@ onMounted(() => {
                 {{ v.is_overdue ? "Overdue" : v.is_today ? "Today" : fmt(v.next_visit_date) }}
               </span>
             </button>
+          </div>
+        </section>
+
+        <section>
+          <p class="section-label"><Icon name="cart" :size="14" />Upcoming cases (next 7 days)</p>
+          <div v-if="!data.cases.length" class="empty"><Icon name="check" :size="24" /><p>No planned cases</p></div>
+          <div v-else class="card divide-y divide-gray-100">
+            <router-link v-for="c in data.cases" :key="c.name" :to="{ name: 'case-detail', params: { name: c.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
+              <span class="h-2 w-2 shrink-0 rounded-full" :class="c.is_overdue ? 'bg-red-500' : c.is_today ? 'bg-amber-500' : 'bg-brand-500'"></span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate font-medium" dir="auto">{{ c.customer_name }}</span>
+                <span class="block truncate text-xs text-gray-500">{{ c.products.join(", ") || c.name }}</span>
+              </span>
+              <span class="badge" :class="c.is_overdue ? 'badge-red' : c.is_today ? 'badge-amber' : 'badge-gray'">{{ caseWhen(c) }}</span>
+            </router-link>
           </div>
         </section>
 

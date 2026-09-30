@@ -2,7 +2,7 @@ import json
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, get_first_day, get_fullname, getdate, now, today
+from frappe.utils import add_days, get_first_day, get_fullname, get_last_day, getdate, now, today
 
 VISIT_FIELDS = (
     "hospital", "doctor", "visit_purpose", "visit_outcome", "relationship_level",
@@ -64,14 +64,33 @@ def get_today():
             due.append(v)
     due.sort(key=lambda x: getdate(x.next_visit_date))
 
+    cases = frappe.get_list(
+        "KC Case",
+        filters={"sales_rep": user, "attended": 0, "case_date": ["<=", horizon]},
+        fields=["name", "customer_name", "case_date"], order_by="case_date asc", limit_page_length=100,
+    )
+    products = {}
+    if cases:
+        for p in frappe.get_all("KC Case Product", filters={"parenttype": "KC Case", "parent": ["in", [c.name for c in cases]]},
+                                fields=["parent", "product"], order_by="idx asc"):
+            products.setdefault(p.parent, []).append(p.product)
+    for c in cases:
+        cd = getdate(c.case_date)
+        c["is_overdue"] = cd < day
+        c["is_today"] = cd == day
+        c["products"] = products.get(c.name, [])
+
     month = [["visit_date", ">=", get_first_day(today())]]
     stats = {
         "month_visits": _count(month),
         "month_positive": _count(month + [["visit_outcome", "=", "Positive"]]),
         "month_orders": _count(month + [["order_expected", "=", 1]]),
         "due": sum(1 for v in due if getdate(v.next_visit_date) <= day),
+        "month_cases": len(frappe.get_list("KC Case", filters={"case_date": ["between", [get_first_day(today()), get_last_day(today())]]},
+                                           pluck="name", limit_page_length=100000)),
+        "cases_due": sum(1 for c in cases if getdate(c.case_date) <= day),
     }
-    return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "recent": visits[:5]}
+    return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "cases": cases, "recent": visits[:5]}
 
 
 @frappe.whitelist()
@@ -121,8 +140,18 @@ def get_visit(name):
         "check_in_time": doc.check_in_time, "products": [p.product for p in doc.products],
         "doctor_title": _doctor_titles([doc.doctor]).get(doc.doctor, doc.doctor),
         "attachments": attachments("KC Visit", doc.name),
+        "can_delete": bool(frappe.has_permission("KC Visit", "delete", doc=doc)),
     })
     return out
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_record(doctype, name):
+    # only managers/admins have delete permission; frappe.delete_doc checks it
+    if doctype not in ("KC Visit", "KC Case"):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    frappe.delete_doc(doctype, name)
+    return "ok"
 
 
 @frappe.whitelist(methods=["POST"])
