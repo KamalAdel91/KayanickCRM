@@ -1,12 +1,4 @@
 frappe.ui.form.on("KC Visit", {
-    setup(frm) {
-        frm.set_query("doctor", () => ({
-            filters: frm.doc.hospital ? { hospital: frm.doc.hospital } : {},
-        }));
-    },
-    hospital(frm) {
-        frm.set_value("doctor", "");
-    },
     onload(frm) {
         if (!frm.is_new()) return;
         frm.set_value("check_in_time", frappe.datetime.now_datetime());

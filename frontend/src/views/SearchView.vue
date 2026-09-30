@@ -22,9 +22,7 @@ async function run() {
 }
 watch(q, () => { clearTimeout(timer); timer = setTimeout(run, 300) })
 onMounted(run)
-function logVisit(hospital, doctor) {
-  router.push({ name: "visit", query: doctor ? { hospital, doctor } : { hospital } })
-}
+
 </script>
 
 <template>
@@ -54,7 +52,7 @@ function logVisit(hospital, doctor) {
       <template v-if="tab === 'hospitals'">
         <div v-if="!res.hospitals.length && !loading" class="empty"><Icon name="building" :size="24" /><p>No hospitals found</p></div>
         <div v-else class="card divide-y divide-gray-100">
-          <button v-for="h in res.hospitals" :key="h.name" class="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50" @click="logVisit(h.name)">
+          <button v-for="h in res.hospitals" :key="h.name" class="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50" @click="router.push({ name: 'hospital', params: { name: h.name } })">
             <span class="avatar">{{ initials(h.name) }}</span>
             <span class="min-w-0 flex-1">
               <span class="block truncate font-medium" dir="auto">{{ h.name }}</span>
@@ -70,11 +68,11 @@ function logVisit(hospital, doctor) {
       <template v-else>
         <div v-if="!res.doctors.length && !loading" class="empty"><Icon name="user" :size="24" /><p>No doctors found</p></div>
         <div v-else class="card divide-y divide-gray-100">
-          <button v-for="d in res.doctors" :key="d.name" class="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50" @click="logVisit(d.hospital, d.name)">
+          <button v-for="d in res.doctors" :key="d.name" class="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50" @click="router.push({ name: 'doctor', params: { name: d.name } })">
             <span class="avatar">{{ initials(d.doctor_name) }}</span>
             <span class="min-w-0 flex-1">
               <span class="block truncate font-medium" dir="auto">{{ d.doctor_name }}</span>
-              <span class="block truncate text-xs text-gray-500" dir="auto">{{ d.hospital }}</span>
+              <span class="block truncate text-xs text-gray-500">{{ "last visit " + (d.last_visit ? fmt(d.last_visit) : "never") }}</span>
             </span>
             <span v-if="d.relationship_level" class="badge" :class="levelBadge(d.relationship_level)">{{ d.relationship_level }}</span>
             <Icon name="chevron-right" :size="16" class="text-gray-300" />

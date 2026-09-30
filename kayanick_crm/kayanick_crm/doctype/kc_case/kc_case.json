@@ -15,21 +15,22 @@
    "hidden": 1
   },
   {
-   "fieldname": "customer",
+   "fieldname": "hospital",
    "fieldtype": "Link",
-   "label": "Customer",
-   "options": "Customer",
+   "label": "Hospital",
+   "options": "KC Hospital",
    "reqd": 1,
    "in_list_view": 1,
    "in_standard_filter": 1
   },
   {
-   "fieldname": "customer_name",
-   "fieldtype": "Data",
-   "label": "Customer Name",
-   "read_only": 1,
-   "fetch_from": "customer.customer_name",
-   "in_list_view": 1
+   "fieldname": "doctor",
+   "fieldtype": "Link",
+   "label": "Doctor",
+   "options": "KC Doctor",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
   },
   {
    "fieldname": "case_date",
@@ -80,8 +81,8 @@
  ],
  "field_order": [
   "naming_series",
-  "customer",
-  "customer_name",
+  "hospital",
+  "doctor",
   "case_date",
   "attended",
   "cb_1",
@@ -130,6 +131,6 @@
  "row_format": "Dynamic",
  "autoname": "naming_series:",
  "naming_rule": "By \"Naming Series\" field",
- "title_field": "customer_name",
- "search_fields": "customer_name"
+ "title_field": "hospital",
+ "search_fields": "hospital,doctor"
 }

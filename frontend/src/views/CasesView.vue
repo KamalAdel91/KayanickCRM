@@ -50,10 +50,10 @@ onMounted(() => {
       </div>
       <div v-else class="card divide-y divide-gray-100">
         <router-link v-for="c in rows" :key="c.name" :to="{ name: 'case-detail', params: { name: c.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
-          <span class="avatar">{{ initials(c.customer_name) }}</span>
+          <span class="avatar">{{ initials(c.hospital) }}</span>
           <div class="min-w-0 flex-1">
-            <p class="truncate font-medium" dir="auto">{{ c.customer_name }}</p>
-            <p class="truncate text-xs text-gray-500">{{ [fmt(c.case_date), c.rep_name, c.products.join(", ")].filter(Boolean).join(" · ") }}</p>
+            <p class="truncate font-medium" dir="auto">{{ c.hospital }}</p>
+            <p class="truncate text-xs text-gray-500">{{ [fmt(c.case_date), c.doctor_title, c.rep_name].filter(Boolean).join(" · ") }}</p>
           </div>
           <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
           <Icon name="chevron-right" :size="16" class="text-gray-300" />

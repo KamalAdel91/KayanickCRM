@@ -58,8 +58,8 @@ onMounted(load)
       <template v-if="c">
         <div class="card divide-y divide-gray-100">
           <div class="px-4 py-3">
-            <p class="text-xs text-gray-500">Customer</p>
-            <p class="font-medium" dir="auto">{{ c.customer_name }}</p>
+            <p class="font-medium" dir="auto">{{ c.hospital }}</p>
+            <p class="text-sm text-gray-500" dir="auto">{{ c.doctor_title }}</p>
             <p class="mt-0.5 flex items-center gap-1 text-xs text-gray-500"><Icon name="user" :size="12" />{{ c.rep_name }}</p>
           </div>
           <div class="flex items-center px-4 py-3">

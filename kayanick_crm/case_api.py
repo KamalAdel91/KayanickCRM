@@ -12,29 +12,30 @@ def _check_role():
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
-@frappe.whitelist()
-def search_customers(text=""):
-    _check_role()
-    text = (text or "").strip()[:60]
-    kw = dict(filters={"disabled": 0}, fields=["name", "customer_name", "territory"],
-              order_by="customer_name asc", limit_page_length=100)
-    if text:
-        kw["or_filters"] = [["customer_name", "like", "%" + text + "%"], ["name", "like", "%" + text + "%"]]
-    return frappe.get_all("Customer", **kw)
+CASE_FIELDS = ["name", "hospital", "doctor", "case_date", "attended", "sales_rep", "creation"]
 
 
-@frappe.whitelist()
-def get_cases():
-    rows = frappe.get_list("KC Case", fields=["name", "customer_name", "case_date", "attended", "sales_rep", "creation"],
-                           order_by="creation desc", limit_page_length=30)
-    from kayanick_crm.mobile import full_names
+def decorate(rows):
+    """Adds products, doctor title and rep name to case rows."""
+    from kayanick_crm.mobile import _doctor_titles, full_names
 
     products = _products([r.name for r in rows])
+    titles = _doctor_titles([r.doctor for r in rows])
     names = full_names([r.sales_rep for r in rows])
     for r in rows:
         r["products"] = products.get(r.name, [])
+        r["doctor_title"] = titles.get(r.doctor, r.doctor)
         r["rep_name"] = names.get(r.sales_rep, r.sales_rep)
     return rows
+
+
+@frappe.whitelist()
+def get_cases(filters=None, limit=30):
+    filters = frappe.parse_json(filters) if filters else {}
+    filters = {k: v for k, v in filters.items() if k in ("hospital", "doctor")}
+    rows = frappe.get_list("KC Case", filters=filters, fields=CASE_FIELDS,
+                           order_by="case_date desc, creation desc", limit_page_length=min(frappe.utils.cint(limit) or 30, 200))
+    return decorate(rows)
 
 
 def _products(names):
@@ -56,7 +57,8 @@ def get_case(name):
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("read")
     return {
-        "name": doc.name, "customer": doc.customer, "customer_name": doc.customer_name,
+        "name": doc.name, "hospital": doc.hospital, "doctor": doc.doctor,
+        "doctor_title": frappe.db.get_value("KC Doctor", doc.doctor, "doctor_name") if doc.doctor else "",
         "case_date": doc.case_date, "attended": doc.attended, "notes": doc.notes, "sales_rep": doc.sales_rep,
         "rep_name": frappe.utils.get_fullname(doc.sales_rep),
         "products": [p.product for p in doc.products],
@@ -81,7 +83,8 @@ def create_case(payload):
     data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
     case = frappe.get_doc({
         "doctype": "KC Case",
-        "customer": data.get("customer"),
+        "hospital": data.get("hospital"),
+        "doctor": data.get("doctor"),
         "case_date": data.get("case_date") or today(),
         "attended": 1 if data.get("attended") else 0,
         "sales_rep": frappe.session.user,

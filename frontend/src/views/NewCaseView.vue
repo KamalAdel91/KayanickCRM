@@ -1,32 +1,25 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from "vue"
-import { useRouter } from "vue-router"
+import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
 import { localToday } from "../ui"
 import Icon from "../components/Icon.vue"
 import AttachPicker from "../components/AttachPicker.vue"
-import PickerSheet from "../components/PickerSheet.vue"
-import PickField from "../components/PickField.vue"
+import HospitalDoctor from "../components/HospitalDoctor.vue"
 import ConfirmSheet from "../components/ConfirmSheet.vue"
 import { uploadFiles } from "../upload"
 
+const route = useRoute()
 const router = useRouter()
-const f = reactive({ customer: null, case_date: localToday(), attended: true, notes: "", products: [] })
+const f = reactive({ hospital: "", hospitalSub: "", doctor: null, case_date: localToday(), attended: true, notes: "", products: [] })
 const productOptions = ref([])
 watch(() => f.case_date, (d) => { f.attended = !!d && d <= localToday() })
-const sheet = ref("")
 const saving = ref(false)
 const attachments = ref([])
 const confirming = ref(false)
 const error = ref("")
 
-const canSave = computed(() => f.customer && !saving.value)
-const customerOpen = computed({ get: () => sheet.value === "customer", set: (v) => (sheet.value = v ? "customer" : "") })
-
-async function fetchCustomers(text) {
-  const r = await call("kayanick_crm.case_api.search_customers", { text })
-  return r.map((c) => ({ value: c.name, label: c.customer_name, sub: [c.name !== c.customer_name ? c.name : "", c.territory].filter(Boolean).join(" · "), raw: c }))
-}
+const canSave = computed(() => !saving.value)
 function toggleProduct(p) {
   const i = f.products.indexOf(p)
   if (i >= 0) f.products.splice(i, 1)
@@ -35,6 +28,10 @@ function toggleProduct(p) {
 onMounted(async () => {
   try { productOptions.value = (await call("kayanick_crm.mobile.get_options")).products }
   catch (e) { error.value = e.message }
+  if (route.query.hospital) f.hospital = route.query.hospital
+  if (route.query.doctor) {
+    try { f.doctor = await call("kayanick_crm.mobile.get_doctor", { name: route.query.doctor }) } catch (e) {}
+  }
 })
 function back() {
   if (window.history.length > 1) router.back()
@@ -42,7 +39,8 @@ function back() {
 }
 
 const summary = computed(() => [
-  { label: "Customer", value: f.customer ? f.customer.customer_name : "" },
+  { label: "Hospital", value: f.hospital },
+  { label: "Doctor", value: f.doctor ? f.doctor.doctor_name : "" },
   { label: "Case date", value: f.case_date },
   { label: "Status", value: f.attended ? "Attended" : "Planned (follow-up)" },
   { label: "Products", value: f.products.join(", ") },
@@ -52,18 +50,18 @@ const summary = computed(() => [
 
 function askSave() {
   error.value = ""
-  if (!f.customer) { error.value = "Choose a customer first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  if (!f.hospital) { error.value = "Choose a hospital first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  if (!f.doctor) { error.value = "Choose a doctor"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   confirming.value = true
 }
 
 async function save() {
   error.value = ""
-  if (!f.customer) { error.value = "Choose a customer first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   saving.value = true
   try {
     const r = await call("kayanick_crm.case_api.create_case", {
       payload: JSON.stringify({
-        customer: f.customer.name, case_date: f.case_date, attended: f.attended, notes: f.notes,
+        hospital: f.hospital, doctor: f.doctor ? f.doctor.name : "", case_date: f.case_date, attended: f.attended, notes: f.notes,
         products: f.products,
       }),
     }, { post: true })
@@ -92,10 +90,9 @@ async function save() {
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
 
       <section>
-        <p class="section-label"><Icon name="building" :size="14" />Customer</p>
+        <p class="section-label"><Icon name="building" :size="14" />Hospital &amp; doctor</p>
         <div class="card space-y-4 p-4">
-          <PickField :value="f.customer ? f.customer.customer_name : ''" :sub="f.customer ? f.customer.name : ''" icon="building"
-            placeholder="Choose customer" @open="sheet = 'customer'" @clear="f.customer = null" />
+          <HospitalDoctor v-model:hospital="f.hospital" v-model:hospital-sub="f.hospitalSub" v-model:doctor="f.doctor" />
           <div>
             <label class="label">Case date</label>
             <input v-model="f.case_date" type="date" class="input" />
@@ -147,7 +144,5 @@ async function save() {
 
     <ConfirmSheet v-model:open="confirming" title="Save this case?" :rows="summary" confirm-text="Save case"
       :busy="saving" @confirm="save" />
-    <PickerSheet v-model:open="customerOpen" title="Choose customer" placeholder="Search customers"
-      :fetcher="fetchCustomers" @pick="(r) => (f.customer = r.raw)" />
   </div>
 </template>

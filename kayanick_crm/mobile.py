@@ -76,18 +76,15 @@ def get_today():
     cases = frappe.get_list(
         "KC Case",
         filters={"sales_rep": user, "attended": 0, "case_date": ["<=", horizon]},
-        fields=["name", "customer_name", "case_date"], order_by="case_date asc", limit_page_length=100,
+        fields=["name", "hospital", "doctor", "case_date"], order_by="case_date asc", limit_page_length=100,
     )
-    products = {}
-    if cases:
-        for p in frappe.get_all("KC Case Product", filters={"parenttype": "KC Case", "parent": ["in", [c.name for c in cases]]},
-                                fields=["parent", "product"], order_by="idx asc"):
-            products.setdefault(p.parent, []).append(p.product)
+    from kayanick_crm.case_api import decorate
+
+    decorate(cases)
     for c in cases:
         cd = getdate(c.case_date)
         c["is_overdue"] = cd < day
         c["is_today"] = cd == day
-        c["products"] = products.get(c.name, [])
 
     month = [["visit_date", ">=", get_first_day(today())]]
     stats = {
@@ -109,21 +106,48 @@ def search(text=""):
     like = "%" + text + "%"
     hosp = dict(fields=["name", "area", "hospital_type", "last_visit", "next_visit"],
                 order_by="name asc", limit_page_length=200)
-    doc = dict(fields=["name", "doctor_name", "hospital", "relationship_level", "last_visit"],
-               order_by="modified desc", limit_page_length=30)
+    doc = dict(fields=["name", "doctor_name", "relationship_level", "last_visit"],
+               order_by="doctor_name asc", limit_page_length=200)
     if text:
         hosp["or_filters"] = [["hospital_name", "like", like], ["area", "like", like]]
-        doc["or_filters"] = [["doctor_name", "like", like], ["hospital", "like", like]]
+        doc["filters"] = [["doctor_name", "like", like]]
     return {"hospitals": frappe.get_list("KC Hospital", **hosp), "doctors": frappe.get_list("KC Doctor", **doc)}
 
 
 @frappe.whitelist()
-def get_doctors(hospital):
-    return frappe.get_list(
-        "KC Doctor", filters={"hospital": hospital},
-        fields=["name", "doctor_name", "relationship_level"],
-        order_by="doctor_name asc", limit_page_length=300,
-    )
+def get_doctor(name):
+    rows = frappe.get_list("KC Doctor", filters={"name": name}, fields=["name", "doctor_name", "relationship_level"])
+    return rows[0] if rows else None
+
+
+@frappe.whitelist()
+def get_profile(doctype, name):
+    """Hospital or doctor card with its visits and cases (visits/cases follow the usual team visibility)."""
+    if doctype not in ("KC Hospital", "KC Doctor"):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    doc = frappe.get_doc(doctype, name)
+    doc.check_permission("read")
+    from kayanick_crm.case_api import CASE_FIELDS, decorate
+
+    key = "hospital" if doctype == "KC Hospital" else "doctor"
+    visits = frappe.get_list("KC Visit", filters={key: name},
+                             fields=["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome",
+                                     "order_expected", "sales_rep", "next_visit_date"],
+                             order_by="visit_date desc, creation desc", limit_page_length=100)
+    titles = _doctor_titles([v.doctor for v in visits])
+    names = full_names([v.sales_rep for v in visits])
+    for v in visits:
+        v["doctor_title"] = titles.get(v.doctor, v.doctor)
+        v["rep_name"] = names.get(v.sales_rep, v.sales_rep)
+    cases = decorate(frappe.get_list("KC Case", filters={key: name}, fields=CASE_FIELDS,
+                                     order_by="case_date desc, creation desc", limit_page_length=100))
+    info = {"name": doc.name, "title": doc.get("hospital_name") or doc.get("doctor_name"),
+            "last_visit": doc.last_visit, "next_visit": doc.next_visit, "customer": doc.get("customer")}
+    if doctype == "KC Hospital":
+        info.update(area=doc.area, hospital_type=doc.hospital_type)
+    else:
+        info.update(relationship_level=doc.relationship_level)
+    return {"info": info, "visits": visits, "cases": cases}
 
 
 @frappe.whitelist()

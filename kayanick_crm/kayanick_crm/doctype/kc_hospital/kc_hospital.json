@@ -30,6 +30,13 @@
    "in_standard_filter": 1
   },
   {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "description": "The ERPNext customer for this record (optional)"
+  },
+  {
    "fieldname": "sb_tracking",
    "fieldtype": "Section Break",
    "label": "Tracking",
@@ -53,6 +60,7 @@
   "hospital_name",
   "area",
   "hospital_type",
+  "customer",
   "sb_tracking",
   "last_visit",
   "next_visit"

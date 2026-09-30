@@ -151,8 +151,8 @@ onMounted(() => {
             <router-link v-for="c in data.cases" :key="c.name" :to="{ name: 'case-detail', params: { name: c.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
               <span class="h-2 w-2 shrink-0 rounded-full" :class="c.is_overdue ? 'bg-red-500' : c.is_today ? 'bg-amber-500' : 'bg-brand-500'"></span>
               <span class="min-w-0 flex-1">
-                <span class="block truncate font-medium" dir="auto">{{ c.customer_name }}</span>
-                <span class="block truncate text-xs text-gray-500">{{ c.products.join(", ") || c.name }}</span>
+                <span class="block truncate font-medium" dir="auto">{{ c.hospital }}</span>
+                <span class="block truncate text-xs text-gray-500" dir="auto">{{ [c.doctor_title, c.products.join(", ")].filter(Boolean).join(" · ") }}</span>
               </span>
               <span class="badge" :class="c.is_overdue ? 'badge-red' : c.is_today ? 'badge-amber' : 'badge-gray'">{{ caseWhen(c) }}</span>
             </router-link>

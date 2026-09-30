@@ -12,6 +12,7 @@ import CaseDetail from "./views/CaseView.vue"
 import Visits from "./views/VisitsView.vue"
 import VisitDetail from "./views/VisitView.vue"
 import Notifications from "./views/NotificationsView.vue"
+import Profile from "./views/ProfileView.vue"
 
 const router = createRouter({
   history: createWebHistory("/KayanickCRM"),
@@ -25,6 +26,8 @@ const router = createRouter({
     { path: "/visits", name: "visits", component: Visits },
     { path: "/visits/:name", name: "visit-detail", component: VisitDetail },
     { path: "/notifications", name: "notifications", component: Notifications },
+    { path: "/hospital/:name", name: "hospital", component: Profile },
+    { path: "/doctor/:name", name: "doctor", component: Profile },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],
 })

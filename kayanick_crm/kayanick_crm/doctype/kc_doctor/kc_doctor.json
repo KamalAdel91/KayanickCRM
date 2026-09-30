@@ -22,21 +22,19 @@
    "in_list_view": 1
   },
   {
-   "fieldname": "hospital",
-   "fieldtype": "Link",
-   "label": "Hospital",
-   "options": "KC Hospital",
-   "reqd": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1
-  },
-  {
    "fieldname": "relationship_level",
    "fieldtype": "Link",
    "label": "Relationship Level",
    "options": "KC Relationship Level",
    "in_list_view": 1,
    "in_standard_filter": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "description": "The ERPNext customer for this record (optional)"
   },
   {
    "fieldname": "sb_tracking",
@@ -60,8 +58,8 @@
  "field_order": [
   "naming_series",
   "doctor_name",
-  "hospital",
   "relationship_level",
+  "customer",
   "sb_tracking",
   "last_visit",
   "next_visit"
@@ -112,5 +110,5 @@
  "naming_rule": "By \"Naming Series\" field",
  "title_field": "doctor_name",
  "show_title_field_in_link": 1,
- "search_fields": "hospital,relationship_level"
+ "search_fields": "relationship_level"
 }

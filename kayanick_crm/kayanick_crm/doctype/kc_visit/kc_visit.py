@@ -1,5 +1,4 @@
 import frappe
-from frappe import _
 from frappe.model.document import Document
 from frappe.utils import getdate
 
@@ -7,12 +6,6 @@ class KCVisit(Document):
     def before_insert(self):
         if not self.sales_rep:
             self.sales_rep = frappe.session.user
-
-    def validate(self):
-        if self.doctor:
-            hospital = frappe.db.get_value("KC Doctor", self.doctor, "hospital")
-            if hospital != self.hospital:
-                frappe.throw(_("Doctor {0} does not belong to {1}").format(self.doctor, self.hospital))
 
     def on_update(self):
         visit_day = getdate(self.visit_date)

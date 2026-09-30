@@ -80,7 +80,8 @@ def _visit_to_managers(name):
 def _case_to_managers(name):
     c = frappe.get_doc("KC Case", name)
     when = "" if c.attended else " for " + getdate(c.case_date).strftime("%d %b")
-    msg = "{0} added a case{1}: {2}".format(get_fullname(c.sales_rep), when, c.customer_name)
+    doctor = frappe.db.get_value("KC Doctor", c.doctor, "doctor_name") if c.doctor else ""
+    msg = "{0} added a case{1}: {2}{3}".format(get_fullname(c.sales_rep), when, c.hospital, " / " + doctor if doctor else "")
     for m in managers_of(c.sales_rep):
         notify(m, msg, "KC Case", c.name, c.sales_rep)
 
