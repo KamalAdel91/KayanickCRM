@@ -1,7 +1,7 @@
 import { call } from "./api"
 
 // Frappe Cloud push relay (same service Frappe HR uses). "frappe" is a project registered on the relay.
-const PROJECT = "frappe"
+const PROJECT = "hrms"
 const TOKEN_KEY = "kc_push_token"
 
 export const pushAvailable = () =>

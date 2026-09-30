@@ -3,7 +3,7 @@ Frappe Cloud's push relay when "Enable Push Notification Relay" is on."""
 import frappe
 from frappe.utils import get_fullname, get_url, getdate, today
 
-PUSH_PROJECT = "frappe"  # a project registered on Frappe's relay server
+PUSH_PROJECT = "hrms"  # the project Frappe HR uses on the relay (custom names are rejected)
 APP_ROUTE = "/KayanickCRM"
 ROUTES = {"KC Visit": "/visits/", "KC Case": "/case/"}
 REMINDER_PREFIX = "Good morning! You have"
@@ -141,7 +141,7 @@ def get_push_config():
     except Exception as e:
         frappe.throw("Push relay is not reachable: {0}".format(e))
     if not r.ok:
-        frappe.throw("Push relay returned {0}: {1}".format(r.status_code, r.text[:200]))
+        frappe.throw("Push relay {0} returned {1} for project '{2}'".format(relay, r.status_code, PUSH_PROJECT))
     j = r.json()
     body = j.get("message") or j
     config = body.get("config") or {}
