@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { fmt, usedItemsError } from "../ui"
+import { fmt, fmtTime, usedItemsError } from "../ui"
 import Icon from "../components/Icon.vue"
 import FileList from "../components/FileList.vue"
 import UsedItems from "../components/UsedItems.vue"
@@ -81,7 +81,7 @@ onMounted(load)
             <p class="mt-0.5 flex items-center gap-1 text-xs text-gray-500"><Icon name="user" :size="12" />{{ c.rep_name }}</p>
           </div>
           <div class="flex items-center px-4 py-3">
-            <div class="flex-1"><p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}</p></div>
+            <div class="flex-1"><p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}<span v-if="c.case_time" class="text-gray-500"> · {{ fmtTime(c.case_time) }}</span></p></div>
             <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
           </div>
         </div>

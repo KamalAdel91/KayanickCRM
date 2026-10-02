@@ -44,6 +44,14 @@
    "search_index": 1
   },
   {
+   "fieldname": "case_time",
+   "fieldtype": "Time",
+   "label": "Case Time",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "What time the case will be attended"
+  },
+  {
    "fieldname": "attended",
    "fieldtype": "Check",
    "label": "Attended",
@@ -115,6 +123,7 @@
   "hospital",
   "doctor",
   "case_date",
+  "case_time",
   "attended",
   "cb_1",
   "sales_rep",

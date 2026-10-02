@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { fmt, initials, outcomeBadge } from "../ui"
+import { fmt, initials, outcomeBadge, fmtTime } from "../ui"
 import Icon from "../components/Icon.vue"
 
 const route = useRoute()
@@ -34,9 +34,10 @@ async function load() {
   finally { loading.value = false }
 }
 function caseWhen(c) {
+  const at = c.case_time ? " · " + fmtTime(c.case_time) : ""
   if (c.is_overdue) return "Overdue"
-  if (c.is_today) return "Today"
-  return fmt(c.case_date)
+  if (c.is_today) return "Today" + at
+  return fmt(c.case_date) + at
 }
 function logVisit(v) {
   const query = {}

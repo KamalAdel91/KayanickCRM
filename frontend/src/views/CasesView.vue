@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, watch, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { fmt, initials } from "../ui"
+import { fmt, initials, fmtTime } from "../ui"
 import { usePaged } from "../paged"
 import Icon from "../components/Icon.vue"
 import FilterBar from "../components/FilterBar.vue"
@@ -49,7 +49,7 @@ onMounted(() => {
           <span class="avatar">{{ initials(c.hospital) }}</span>
           <div class="min-w-0 flex-1">
             <p class="truncate font-medium" dir="auto">{{ c.hospital }}</p>
-            <p class="truncate text-xs text-gray-500">{{ [fmt(c.case_date), c.doctor_title, c.rep_name].filter(Boolean).join(" · ") }}</p>
+            <p class="truncate text-xs text-gray-500">{{ [fmt(c.case_date) + (c.case_time ? ' · ' + fmtTime(c.case_time) : ''), c.doctor_title, c.rep_name].filter(Boolean).join(" · ") }}</p>
           </div>
           <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
           <Icon name="chevron-right" :size="16" class="text-gray-300" />

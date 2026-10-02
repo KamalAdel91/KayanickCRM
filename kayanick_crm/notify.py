@@ -100,13 +100,23 @@ def _visit_to_managers(name):
         notify(m, msg, "KC Visit", v.name, v.sales_rep, title=title, body=body)
 
 
+def _hm(t):
+    """'14:30:00' or timedelta -> '2:30 PM'"""
+    from frappe.utils import format_time
+    try:
+        return format_time(t, "h:mm a")
+    except Exception:
+        return str(t)[:5]
+
+
 def _case_to_managers(name):
     c = frappe.get_doc("KC Case", name)
-    when = "" if c.attended else " for " + getdate(c.case_date).strftime("%d %b")
+    at = (" " + _hm(c.case_time)) if c.case_time else ""
+    when = "" if c.attended else " for " + getdate(c.case_date).strftime("%d %b") + at
     doctor = frappe.db.get_value("KC Doctor", c.doctor, "doctor_name") if c.doctor else ""
     rep = get_fullname(c.sales_rep)
     msg = "{0} added a case{1}: {2}{3}".format(rep, when, c.hospital, " / " + doctor if doctor else "")
-    title = "📅 Planned case · " + getdate(c.case_date).strftime("%d %b") if not c.attended else "🩺 New case"
+    title = "📅 Planned case · " + getdate(c.case_date).strftime("%d %b") + at if not c.attended else "🩺 New case"
     body = " · ".join(x for x in (rep, c.hospital, doctor) if x)
     for m in managers_of(c.sales_rep):
         notify(m, msg, "KC Case", c.name, c.sales_rep, title=title, body=body)

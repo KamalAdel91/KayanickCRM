@@ -2,7 +2,7 @@
 import { ref, computed, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { fmt, initials, outcomeBadge, levelBadge } from "../ui"
+import { fmt, initials, outcomeBadge, levelBadge, fmtTime } from "../ui"
 import { usePaged } from "../paged"
 import Icon from "../components/Icon.vue"
 
@@ -102,7 +102,7 @@ function back() {
             <router-link v-for="c in cases.rows.value" :key="c.name" :to="{ name: 'case-detail', params: { name: c.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
               <div class="min-w-0 flex-1">
                 <p class="truncate font-medium" dir="auto">{{ isHospital ? c.doctor_title : c.hospital }}</p>
-                <p class="truncate text-xs text-gray-500" dir="auto">{{ [fmt(c.case_date), c.products.join(", "), c.rep_name].filter(Boolean).join(" · ") }}</p>
+                <p class="truncate text-xs text-gray-500" dir="auto">{{ [fmt(c.case_date) + (c.case_time ? ' · ' + fmtTime(c.case_time) : ''), c.products.join(", "), c.rep_name].filter(Boolean).join(" · ") }}</p>
               </div>
               <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
               <Icon name="chevron-right" :size="16" class="text-gray-300" />

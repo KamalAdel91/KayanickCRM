@@ -76,7 +76,7 @@ def get_today():
     cases = frappe.get_list(
         "KC Case",
         filters={"sales_rep": user, "attended": 0, "case_date": ["<=", horizon]},
-        fields=["name", "hospital", "doctor", "case_date"], order_by="case_date asc", limit_page_length=100,
+        fields=["name", "hospital", "doctor", "case_date", "case_time"], order_by="case_date asc, case_time asc", limit_page_length=100,
     )
     from kayanick_crm.case_api import decorate
 

@@ -7,6 +7,13 @@ export function initials(s) {
   return (s || "?").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase()
 }
 
+// "14:30:00" -> "2:30 PM"
+export function fmtTime(t) {
+  if (!t) return ""
+  const [h, m] = String(t).split(":").map(Number)
+  if (isNaN(h)) return ""
+  return `${h % 12 || 12}:${String(m || 0).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`
+}
 export function localToday() {
   const d = new Date()
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)

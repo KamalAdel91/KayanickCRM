@@ -12,7 +12,7 @@ def _check_role():
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
-CASE_FIELDS = ["name", "hospital", "doctor", "case_date", "attended", "used_products", "sales_rep", "creation"]
+CASE_FIELDS = ["name", "hospital", "doctor", "case_date", "case_time", "attended", "used_products", "sales_rep", "creation"]
 
 
 def decorate(rows):
@@ -23,6 +23,7 @@ def decorate(rows):
     titles = _doctor_titles([r.doctor for r in rows])
     names = full_names([r.sales_rep for r in rows])
     for r in rows:
+        r["case_time"] = str(r.case_time) if r.get("case_time") else ""
         r["products"] = products.get(r.name, [])
         r["doctor_title"] = titles.get(r.doctor, r.doctor)
         r["rep_name"] = names.get(r.sales_rep, r.sales_rep)
@@ -38,7 +39,7 @@ def get_cases(args=None):
         filters.append(["attended", "=", frappe.utils.cint(a.attended)])
     start, limit = page_args(a)
     rows = frappe.get_list("KC Case", filters=filters, or_filters=or_filters, fields=CASE_FIELDS,
-                           order_by="case_date desc, creation desc", limit_start=start, limit_page_length=limit)
+                           order_by="case_date desc, case_time desc, creation desc", limit_start=start, limit_page_length=limit)
     return decorate(rows)
 
 
@@ -63,7 +64,7 @@ def get_case(name):
     return {
         "name": doc.name, "hospital": doc.hospital, "doctor": doc.doctor,
         "doctor_title": frappe.db.get_value("KC Doctor", doc.doctor, "doctor_name") if doc.doctor else "",
-        "case_date": doc.case_date, "attended": doc.attended, "notes": doc.notes, "sales_rep": doc.sales_rep,
+        "case_date": doc.case_date, "case_time": str(doc.case_time or ""), "attended": doc.attended, "notes": doc.notes, "sales_rep": doc.sales_rep,
         "rep_name": frappe.utils.get_fullname(doc.sales_rep),
         "products": [p.product for p in doc.products],
         "used_products": doc.used_products or "",
@@ -122,6 +123,7 @@ def create_case(payload):
         "hospital": data.get("hospital"),
         "doctor": data.get("doctor"),
         "case_date": data.get("case_date") or today(),
+        "case_time": data.get("case_time"),
         "attended": 1 if data.get("attended") else 0,
         "sales_rep": frappe.session.user,
         "notes": data.get("notes"),
