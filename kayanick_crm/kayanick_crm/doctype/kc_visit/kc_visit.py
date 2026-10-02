@@ -1,11 +1,18 @@
 import frappe
 from frappe.model.document import Document
+from frappe import _
 from frappe.utils import getdate
 
 class KCVisit(Document):
     def before_insert(self):
         if not self.sales_rep:
             self.sales_rep = frappe.session.user
+
+    def validate(self):
+        if self.has_next_visit != "Yes":
+            self.next_visit_date = None
+        if self.next_visit_date and self.visit_date and getdate(self.next_visit_date) < getdate(self.visit_date):
+            frappe.throw(_("Next visit date can't be before the visit date"))
 
     def on_update(self):
         visit_day = getdate(self.visit_date)

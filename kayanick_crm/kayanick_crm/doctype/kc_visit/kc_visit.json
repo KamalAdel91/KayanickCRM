@@ -63,14 +63,16 @@
    "label": "Visit Purpose",
    "options": "KC Visit Purpose",
    "in_list_view": 1,
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "reqd": 1
   },
   {
    "fieldname": "visit_outcome",
    "fieldtype": "Link",
    "label": "Visit Outcome",
    "options": "KC Visit Outcome",
-   "in_standard_filter": 1
+   "in_standard_filter": 1,
+   "reqd": 1
   },
   {
    "fieldname": "relationship_level",
@@ -78,7 +80,8 @@
    "label": "Relationship Level",
    "options": "KC Relationship Level",
    "fetch_from": "doctor.relationship_level",
-   "fetch_if_empty": 1
+   "fetch_if_empty": 1,
+   "reqd": 1
   },
   {
    "fieldname": "order_expected",
@@ -95,7 +98,8 @@
    "fieldname": "products",
    "fieldtype": "Table MultiSelect",
    "label": "Product Discussed",
-   "options": "KC Visit Product"
+   "options": "KC Visit Product",
+   "reqd": 1
   },
   {
    "fieldname": "notes",
@@ -110,13 +114,23 @@
   {
    "fieldname": "next_action",
    "fieldtype": "Small Text",
-   "label": "Next Action"
+   "label": "Next Action",
+   "reqd": 1
+  },
+  {
+   "fieldname": "has_next_visit",
+   "fieldtype": "Select",
+   "label": "Next Visit Planned?",
+   "options": "\nYes\nNo",
+   "reqd": 1
   },
   {
    "fieldname": "next_visit_date",
    "fieldtype": "Date",
    "label": "Next Visit Date",
-   "search_index": 1
+   "search_index": 1,
+   "depends_on": "eval:doc.has_next_visit=='Yes'",
+   "mandatory_depends_on": "eval:doc.has_next_visit=='Yes'"
   },
   {
    "fieldname": "sb_check_in",
@@ -153,6 +167,7 @@
   "notes",
   "sb_next_step",
   "next_action",
+  "has_next_visit",
   "next_visit_date",
   "sb_check_in",
   "check_in_time",

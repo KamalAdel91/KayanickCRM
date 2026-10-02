@@ -75,12 +75,39 @@
    "fieldname": "products",
    "fieldtype": "Table MultiSelect",
    "label": "Products",
-   "options": "KC Case Product"
+   "options": "KC Case Product",
+   "reqd": 1
   },
   {
    "fieldname": "notes",
    "fieldtype": "Small Text",
-   "label": "Notes"
+   "label": "Notes",
+   "reqd": 1
+  },
+  {
+   "fieldname": "sb_used",
+   "fieldtype": "Section Break",
+   "label": "Used Products",
+   "depends_on": "eval:doc.attended"
+  },
+  {
+   "fieldname": "used_products",
+   "fieldtype": "Select",
+   "label": "Used Products?",
+   "options": "\nYes\nNo",
+   "depends_on": "eval:doc.attended",
+   "mandatory_depends_on": "eval:doc.attended",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Info only, does not touch stock"
+  },
+  {
+   "fieldname": "used_items",
+   "fieldtype": "Table",
+   "label": "Used Items",
+   "options": "KC Case Used Item",
+   "depends_on": "eval:doc.attended && doc.used_products=='Yes'",
+   "mandatory_depends_on": "eval:doc.attended && doc.used_products=='Yes'"
   }
  ],
  "field_order": [
@@ -93,7 +120,10 @@
   "sales_rep",
   "sb_products",
   "products",
-  "notes"
+  "notes",
+  "sb_used",
+  "used_products",
+  "used_items"
  ],
  "permissions": [
   {

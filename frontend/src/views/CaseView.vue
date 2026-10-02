@@ -2,9 +2,10 @@
 import { ref, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { fmt } from "../ui"
+import { fmt, usedItemsError } from "../ui"
 import Icon from "../components/Icon.vue"
 import FileList from "../components/FileList.vue"
+import UsedItems from "../components/UsedItems.vue"
 
 const route = useRoute()
 const router = useRouter()
@@ -17,12 +18,29 @@ async function load() {
 }
 const deleting = ref(false)
 const marking = ref(false)
-async function toggleAttended() {
-  marking.value = true
+// marking attended asks "used products?" first
+const answering = ref(false)
+const ans = ref({ used: "", items: [] })
+function startAttend() {
   error.value = ""
+  ans.value = { used: "", items: [] }
+  answering.value = true
+}
+async function submitAttended(attended) {
+  error.value = ""
+  if (attended) {
+    const err = usedItemsError(ans.value.used, ans.value.items)
+    if (err) { error.value = err; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  }
+  marking.value = true
   try {
-    c.value.attended = await call("kayanick_crm.case_api.set_attended", { name: c.value.name, attended: c.value.attended ? 0 : 1 }, { post: true })
-  } catch (e) { error.value = e.message }
+    await call("kayanick_crm.case_api.set_attended", {
+      name: c.value.name, attended: attended ? 1 : 0, used_products: attended ? ans.value.used : "",
+      used_items: attended && ans.value.used === "Yes" ? ans.value.items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
+    }, { post: true })
+    answering.value = false
+    await load()
+  } catch (e) { error.value = e.message; window.scrollTo({ top: 0, behavior: "smooth" }) }
   finally { marking.value = false }
 }
 async function remove() {
@@ -75,6 +93,19 @@ onMounted(load)
           </div>
         </section>
 
+        <section v-if="c.attended && c.used_products">
+          <p class="section-label"><Icon name="cart" :size="14" />Used products · {{ c.used_products }}</p>
+          <div v-if="c.used_items.length" class="card divide-y divide-gray-100">
+            <div v-for="r in c.used_items" :key="r.item_code" class="flex items-center gap-3 px-4 py-2.5">
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-medium" dir="auto">{{ r.item_name }}</span>
+                <span class="block truncate text-xs text-gray-500">{{ r.item_code }}</span>
+              </span>
+              <span class="text-sm font-medium">{{ r.qty }}<span v-if="r.uom" class="text-xs text-gray-500"> {{ r.uom }}</span></span>
+            </div>
+          </div>
+        </section>
+
         <section v-if="c.notes">
           <p class="section-label"><Icon name="file-text" :size="14" />Notes</p>
           <div class="card whitespace-pre-line p-4 text-sm" dir="auto">{{ c.notes }}</div>
@@ -85,9 +116,24 @@ onMounted(load)
           <div class="card p-4"><FileList :files="c.attachments" /></div>
         </section>
 
-        <button v-if="c.can_edit" type="button" class="btn h-11 w-full" :class="c.attended ? 'btn-subtle' : 'btn-primary'" :disabled="marking" @click="toggleAttended">
-          <Icon :name="c.attended ? 'calendar' : 'check'" :size="16" />{{ c.attended ? "Mark as planned" : "Mark as attended" }}
-        </button>
+        <section v-if="answering">
+          <p class="section-label"><Icon name="cart" :size="14" />Mark as attended</p>
+          <div class="card space-y-3 p-4">
+            <UsedItems v-model:used="ans.used" v-model:items="ans.items" />
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button type="button" class="btn btn-subtle h-11" :disabled="marking" @click="answering = false">Cancel</button>
+              <button type="button" class="btn btn-primary h-11" :disabled="marking" @click="submitAttended(true)">{{ marking ? "Saving…" : "Save" }}</button>
+            </div>
+          </div>
+        </section>
+        <template v-else-if="c.can_edit">
+          <button v-if="c.attended" type="button" class="btn btn-subtle h-11 w-full" :disabled="marking" @click="submitAttended(false)">
+            <Icon name="calendar" :size="16" />Mark as planned
+          </button>
+          <button v-else type="button" class="btn btn-primary h-11 w-full" @click="startAttend">
+            <Icon name="check" :size="16" />Mark as attended
+          </button>
+        </template>
         <button v-if="c.can_delete" type="button" class="btn h-11 w-full border border-red-200 bg-red-50 text-red-700" :disabled="deleting" @click="remove">
           {{ deleting ? "Deleting…" : "Delete case" }}
         </button>

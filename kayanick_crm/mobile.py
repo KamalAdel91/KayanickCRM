@@ -8,7 +8,7 @@ from kayanick_crm.notify import unread
 
 VISIT_FIELDS = (
     "hospital", "doctor", "visit_purpose", "visit_outcome", "relationship_level",
-    "notes", "next_action", "next_visit_date", "visit_date", "geolocation",
+    "notes", "next_action", "has_next_visit", "next_visit_date", "visit_date", "geolocation",
 )
 LIST_DTS = {
     "purposes": "KC Visit Purpose",

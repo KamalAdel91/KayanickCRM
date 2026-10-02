@@ -21,3 +21,15 @@ export const outcomeBadge = (v) => OUTCOME[v] || "badge-gray"
 export const levelBadge = (v) => LEVEL[v] || "badge-gray"
 export const chipOn = (badge) => CHIP[badge] || "chip-on"
 export const dot = (badge) => DOT[badge] || "bg-gray-400"
+
+// "used products" answer on an attended case: returns an error text or ""
+export function usedItemsError(used, items) {
+  if (used !== "Yes" && used !== "No") return "Did you use products in this case? Choose Yes or No"
+  if (used === "No") return ""
+  if (!items.length) return "Add the products that were used"
+  if (items.some((r) => !(Number(r.qty) > 0))) return "Each used item needs a quantity"
+  return ""
+}
+export function usedItemsText(items) {
+  return items.map((r) => `${r.item_name} × ${r.qty}${r.uom ? " " + r.uom : ""}`).join("\n")
+}

@@ -12,7 +12,7 @@ def _check_role():
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
-CASE_FIELDS = ["name", "hospital", "doctor", "case_date", "attended", "sales_rep", "creation"]
+CASE_FIELDS = ["name", "hospital", "doctor", "case_date", "attended", "used_products", "sales_rep", "creation"]
 
 
 def decorate(rows):
@@ -66,17 +66,49 @@ def get_case(name):
         "case_date": doc.case_date, "attended": doc.attended, "notes": doc.notes, "sales_rep": doc.sales_rep,
         "rep_name": frappe.utils.get_fullname(doc.sales_rep),
         "products": [p.product for p in doc.products],
+        "used_products": doc.used_products or "",
+        "used_items": [{"item_code": r.item_code, "item_name": r.item_name, "qty": r.qty, "uom": r.uom}
+                       for r in doc.used_items],
         "attachments": attachments("KC Case", doc.name),
         "can_delete": bool(frappe.has_permission("KC Case", "delete", doc=doc)),
         "can_edit": bool(frappe.has_permission("KC Case", "write", doc=doc)),
     }
 
 
+def _used_rows(items):
+    if isinstance(items, str):
+        items = json.loads(items or "[]")
+    return [{"item_code": r.get("item_code"), "qty": frappe.utils.flt(r.get("qty"))}
+            for r in (items or []) if r.get("item_code")]
+
+
+def _apply_used(doc, used_products, used_items):
+    if not doc.attended:
+        return
+    if used_products not in ("Yes", "No"):
+        frappe.throw(_("Did you use products in this case? Choose Yes or No"))
+    doc.used_products = used_products
+    doc.set("used_items", _used_rows(used_items) if used_products == "Yes" else [])
+
+
+@frappe.whitelist()
+def search_items(text=""):
+    """ERPNext items for the 'used products' picker (info only, no stock effect)."""
+    _check_role()
+    text = (text or "").strip()[:60]
+    kw = dict(filters={"disabled": 0, "has_variants": 0}, fields=["name", "item_name", "stock_uom"],
+              order_by="item_name asc", limit_page_length=50)
+    if text:
+        kw["or_filters"] = [["item_name", "like", "%" + text + "%"], ["name", "like", "%" + text + "%"]]
+    return frappe.get_all("Item", **kw)
+
+
 @frappe.whitelist(methods=["POST"])
-def set_attended(name, attended=1):
+def set_attended(name, attended=1, used_products=None, used_items=None):
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")
     doc.attended = 1 if frappe.utils.cint(attended) else 0
+    _apply_used(doc, used_products, used_items)
     doc.save()
     return doc.attended
 
@@ -95,5 +127,6 @@ def create_case(payload):
         "notes": data.get("notes"),
         "products": [{"product": p} for p in (data.get("products") or []) if p],
     })
+    _apply_used(case, data.get("used_products"), data.get("used_items"))
     case.insert()
     return {"case": case.name}

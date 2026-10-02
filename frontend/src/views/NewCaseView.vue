@@ -2,16 +2,17 @@
 import { ref, reactive, computed, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { localToday } from "../ui"
+import { localToday, usedItemsError, usedItemsText } from "../ui"
 import Icon from "../components/Icon.vue"
 import AttachPicker from "../components/AttachPicker.vue"
 import HospitalDoctor from "../components/HospitalDoctor.vue"
 import ConfirmSheet from "../components/ConfirmSheet.vue"
+import UsedItems from "../components/UsedItems.vue"
 import { uploadFiles } from "../upload"
 
 const route = useRoute()
 const router = useRouter()
-const f = reactive({ hospital: "", hospitalSub: "", doctor: null, case_date: localToday(), attended: true, notes: "", products: [] })
+const f = reactive({ hospital: "", hospitalSub: "", doctor: null, case_date: localToday(), attended: true, notes: "", products: [], used_products: "", used_items: [] })
 const productOptions = ref([])
 watch(() => f.case_date, (d) => { f.attended = !!d && d <= localToday() })
 const saving = ref(false)
@@ -44,6 +45,8 @@ const summary = computed(() => [
   { label: "Case date", value: f.case_date },
   { label: "Status", value: f.attended ? "Attended" : "Planned (follow-up)" },
   { label: "Products", value: f.products.join(", ") },
+  { label: "Used products", value: f.attended ? f.used_products : "" },
+  { label: "Used items", value: f.attended && f.used_products === "Yes" ? usedItemsText(f.used_items) : "" },
   { label: "Notes", value: f.notes },
   { label: "Attachments", value: attachments.value.length ? String(attachments.value.length) : "" },
 ])
@@ -52,6 +55,10 @@ function askSave() {
   error.value = ""
   if (!f.hospital) { error.value = "Choose a hospital first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   if (!f.doctor) { error.value = "Choose a doctor"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  const req = !f.case_date ? "Choose the case date" : !f.products.length ? "Choose at least one product" : !f.notes.trim() ? "Write the notes" : ""
+  if (req) { error.value = req; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  const usedErr = f.attended ? usedItemsError(f.used_products, f.used_items) : ""
+  if (usedErr) { error.value = usedErr; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   confirming.value = true
 }
 
@@ -63,6 +70,8 @@ async function save() {
       payload: JSON.stringify({
         hospital: f.hospital, doctor: f.doctor ? f.doctor.name : "", case_date: f.case_date, attended: f.attended, notes: f.notes,
         products: f.products,
+        used_products: f.attended ? f.used_products : "",
+        used_items: f.attended && f.used_products === "Yes" ? f.used_items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
       }),
     }, { post: true })
     const failed = attachments.value.length ? await uploadFiles("KC Case", r.case, attachments.value) : []
@@ -94,23 +103,14 @@ async function save() {
         <div class="card space-y-4 p-4">
           <HospitalDoctor v-model:hospital="f.hospital" v-model:hospital-sub="f.hospitalSub" v-model:doctor="f.doctor" />
           <div>
-            <label class="label">Case date</label>
+            <label class="label">Case date<span class="text-red-500"> *</span></label>
             <input v-model="f.case_date" type="date" class="input" />
           </div>
-          <button type="button" class="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5" @click="f.attended = !f.attended">
-            <span class="text-left">
-              <span class="block text-sm font-medium">Attended</span>
-              <span class="block text-xs text-gray-400">{{ f.attended ? "Case is done" : "Planned — shows in Today until marked attended" }}</span>
-            </span>
-            <span class="relative h-6 w-11 shrink-0 rounded-full transition" :class="f.attended ? 'bg-brand-600' : 'bg-gray-200'">
-              <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="f.attended ? 'left-[22px]' : 'left-0.5'"></span>
-            </span>
-          </button>
         </div>
       </section>
 
       <section>
-        <p class="section-label"><Icon name="clipboard" :size="14" />Products<span v-if="f.products.length" class="text-gray-400">· {{ f.products.length }}</span></p>
+        <p class="section-label"><Icon name="clipboard" :size="14" />Products<span class="text-red-500"> *</span><span v-if="f.products.length" class="text-gray-400">· {{ f.products.length }}</span></p>
         <div class="card p-4">
           <div class="flex flex-wrap gap-2">
             <button v-for="p in productOptions" :key="p" type="button" class="chip"
@@ -122,7 +122,23 @@ async function save() {
       </section>
 
       <section>
-        <p class="section-label"><Icon name="file-text" :size="14" />Notes</p>
+        <p class="section-label"><Icon name="check" :size="14" />Status</p>
+        <div class="card space-y-4 p-4">
+          <button type="button" class="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5" @click="f.attended = !f.attended">
+            <span class="text-left">
+              <span class="block text-sm font-medium">Attended</span>
+              <span class="block text-xs text-gray-400">{{ f.attended ? "Case is done" : "Planned — shows in Today until marked attended" }}</span>
+            </span>
+            <span class="relative h-6 w-11 shrink-0 rounded-full transition" :class="f.attended ? 'bg-brand-600' : 'bg-gray-200'">
+              <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="f.attended ? 'left-[22px]' : 'left-0.5'"></span>
+            </span>
+          </button>
+          <UsedItems v-if="f.attended" v-model:used="f.used_products" v-model:items="f.used_items" />
+        </div>
+      </section>
+
+      <section>
+        <p class="section-label"><Icon name="file-text" :size="14" />Notes<span class="text-red-500"> *</span></p>
         <div class="card p-4">
           <textarea v-model="f.notes" rows="3" placeholder="Doctor, procedure, anything the office should know" class="input h-auto resize-none py-2" dir="auto"></textarea>
         </div>
