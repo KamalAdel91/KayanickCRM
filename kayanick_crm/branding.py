@@ -85,7 +85,7 @@ def manifest():
     return {
         "id": "/KayanickCRM",
         "name": "Kayanick CRM",
-        "short_name": "Kayanick",
+        "short_name": "Kayanick CRM",
         "start_url": "/KayanickCRM",
         "scope": "/KayanickCRM",
         "display": "standalone",
