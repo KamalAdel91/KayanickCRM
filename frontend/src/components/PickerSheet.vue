@@ -82,8 +82,8 @@ function create() {
           <button v-for="r in rows" :key="r.value" type="button"
             class="flex w-full items-center gap-3 border-b border-gray-50 px-4 py-3 text-left active:bg-gray-50" @click="pick(r)">
             <span class="min-w-0 flex-1">
-              <span class="block truncate font-medium" dir="auto">{{ r.label }}</span>
-              <span v-if="r.sub" class="block truncate text-xs text-gray-500" dir="auto">{{ r.sub }}</span>
+              <span class="block break-words font-medium" dir="auto">{{ r.label }}</span>
+              <span v-if="r.sub" class="block break-words text-xs text-gray-500" dir="auto">{{ r.sub }}</span>
             </span>
             <span v-if="selected.includes(r.value)" class="badge badge-blue"><Icon name="check" :size="12" />Added<Icon v-if="multi" name="x" :size="12" /></span>
             <Icon v-else :name="multi ? 'plus' : 'chevron-right'" :size="16" class="text-gray-300" />

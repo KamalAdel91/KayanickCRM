@@ -35,15 +35,20 @@ function step(row, d) { row.qty = Math.max(1, (Number(row.qty) || 0) + d) }
     </div>
 
     <template v-if="used === 'Yes'">
-      <div v-for="(row, i) in items" :key="row.item_code" class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
-        <span class="min-w-0 flex-1">
-          <span class="block truncate text-sm font-medium" dir="auto">{{ row.item_name }}</span>
-          <span class="block truncate text-xs text-gray-500">{{ row.item_code }}<template v-if="row.uom"> · {{ row.uom }}</template></span>
-        </span>
-        <button type="button" class="btn btn-subtle h-8 w-8 px-0" aria-label="Less" @click="step(row, -1)">−</button>
-        <input v-model.number="row.qty" type="number" inputmode="decimal" min="0" step="any" class="input h-8 w-14 px-1 text-center" />
-        <button type="button" class="btn btn-subtle h-8 w-8 px-0" aria-label="More" @click="step(row, 1)"><Icon name="plus" :size="14" /></button>
-        <button type="button" class="p-1 text-gray-400" aria-label="Remove" @click="remove(i)"><Icon name="x" :size="14" /></button>
+      <div v-for="(row, i) in items" :key="row.item_code" class="rounded-lg border border-gray-200 px-3 py-2">
+        <div class="flex items-start gap-2">
+          <span class="min-w-0 flex-1">
+            <span class="block break-words text-sm font-medium" dir="auto">{{ row.item_name }}</span>
+            <span v-if="row.item_code !== row.item_name" class="block break-words text-xs text-gray-500">{{ row.item_code }}</span>
+          </span>
+          <button type="button" class="p-1 text-gray-400" aria-label="Remove" @click="remove(i)"><Icon name="x" :size="14" /></button>
+        </div>
+        <div class="mt-2 flex items-center justify-end gap-2">
+          <span v-if="row.uom" class="mr-auto text-xs text-gray-500">{{ row.uom }}</span>
+          <button type="button" class="btn btn-subtle h-8 w-8 px-0" aria-label="Less" @click="step(row, -1)">−</button>
+          <input v-model.number="row.qty" type="number" inputmode="decimal" min="0" step="any" class="input h-8 w-16 px-1 text-center" />
+          <button type="button" class="btn btn-subtle h-8 w-8 px-0" aria-label="More" @click="step(row, 1)"><Icon name="plus" :size="14" /></button>
+        </div>
       </div>
       <button type="button" class="btn btn-subtle h-10 w-full" @click="picking = true"><Icon name="plus" :size="15" />Add item</button>
       <p class="text-xs text-gray-400">For the record only — stock is not affected.</p>

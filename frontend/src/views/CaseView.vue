@@ -98,10 +98,10 @@ onMounted(load)
           <div v-if="c.used_items.length" class="card divide-y divide-gray-100">
             <div v-for="r in c.used_items" :key="r.item_code" class="flex items-center gap-3 px-4 py-2.5">
               <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-medium" dir="auto">{{ r.item_name }}</span>
-                <span class="block truncate text-xs text-gray-500">{{ r.item_code }}</span>
+                <span class="block break-words text-sm font-medium" dir="auto">{{ r.item_name }}</span>
+                <span v-if="r.item_code !== r.item_name" class="block break-words text-xs text-gray-500">{{ r.item_code }}</span>
               </span>
-              <span class="text-sm font-medium">{{ r.qty }}<span v-if="r.uom" class="text-xs text-gray-500"> {{ r.uom }}</span></span>
+              <span class="shrink-0 text-sm font-medium">{{ r.qty }}<span v-if="r.uom" class="text-xs text-gray-500"> {{ r.uom }}</span></span>
             </div>
           </div>
         </section>
