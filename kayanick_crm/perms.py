@@ -1,5 +1,8 @@
 """Row-level access for KC Visit and KC Case, driven by ERPNext's Sales Person tree.
 
+KC Case: planned cases are visible to every user; once attended, a case is visible to the person who
+attended it and the managers above them.
+
 User -> Employee (user_id) -> Sales Person (employee). A Sales Manager sees himself plus every
 Sales Person below his node(s) in the tree. A Sales Rep sees only himself. System Manager sees all.
 """
@@ -47,15 +50,27 @@ def _condition(doctype, user):
     if reps is None:
         return ""
     names = ", ".join(frappe.db.escape(r) for r in sorted(reps))
-    cond = "`tab%s`.`sales_rep` in (%s)" % (doctype, names)
-    if doctype == "KC Case":  # a case attended by someone else is theirs to see as well
-        cond = "(%s or `tabKC Case`.`attended_by` in (%s))" % (cond, names)
-    return cond
+    if doctype == "KC Case":
+        # planned cases are open to everyone; an attended case belongs to whoever attended it
+        return ("(`tabKC Case`.`attended` = 0 or `tabKC Case`.`attended_by` in ({0})"
+                " or (ifnull(`tabKC Case`.`attended_by`, '') = '' and `tabKC Case`.`sales_rep` in ({0})))").format(names)
+    return "`tab%s`.`sales_rep` in (%s)" % (doctype, names)
 
 
 def _allowed(doc, user):
     reps = visible_reps(user)
-    return reps is None or doc.get("sales_rep") in reps or (doc.doctype == "KC Case" and doc.get("attended_by") in reps)
+    return reps is None or doc.get("sales_rep") in reps
+
+
+def _case_allowed(doc, user, ptype):
+    reps = visible_reps(user)
+    if reps is None:
+        return True
+    if not doc.get("attended"):
+        # anyone may open / attend a planned case; deleting stays with the creator's managers
+        return ptype != "delete" or doc.get("sales_rep") in reps
+    owner = doc.get("attended_by") or doc.get("sales_rep")
+    return owner in reps
 
 
 def visit_query(user=None):
@@ -77,4 +92,8 @@ def case_has_permission(doc, user=None, permission_type=None):
     user = user or frappe.session.user
     if permission_type == "create":
         return True
-    return _allowed(doc, user)
+    # judge by the saved row, so marking a planned case attended for someone else can still be saved
+    saved = None
+    if doc.get("name") and not doc.is_new():
+        saved = frappe.db.get_value("KC Case", doc.name, ["attended", "attended_by", "sales_rep"], as_dict=True)
+    return _case_allowed(saved or doc, user, permission_type)
