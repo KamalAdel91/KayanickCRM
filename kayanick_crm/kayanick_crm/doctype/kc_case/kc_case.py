@@ -13,6 +13,9 @@ class KCCase(Document):
         # used items are info only (no stock effect); they only make sense once the case is attended
         if not self.attended:
             self.used_products = ""
+            self.attended_by = None
+        elif not self.attended_by:
+            self.attended_by = frappe.session.user
         if self.used_products != "Yes":
             self.used_items = []
             return

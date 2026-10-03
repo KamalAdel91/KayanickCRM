@@ -8,11 +8,12 @@ import AttachPicker from "../components/AttachPicker.vue"
 import HospitalDoctor from "../components/HospitalDoctor.vue"
 import ConfirmSheet from "../components/ConfirmSheet.vue"
 import UsedItems from "../components/UsedItems.vue"
+import AttendeePick from "../components/AttendeePick.vue"
 import { uploadFiles } from "../upload"
 
 const route = useRoute()
 const router = useRouter()
-const f = reactive({ hospital: "", hospitalSub: "", doctor: null, case_date: localToday(), case_time: "", attended: true, notes: "", products: [], used_products: "", used_items: [] })
+const f = reactive({ hospital: "", hospitalSub: "", doctor: null, case_date: localToday(), case_time: "", attended: true, notes: "", products: [], used_products: "", used_items: [], attended_by: null })
 const productOptions = ref([])
 watch(() => f.case_date, (d) => { f.attended = !!d && d <= localToday() })
 const saving = ref(false)
@@ -46,6 +47,7 @@ const summary = computed(() => [
   { label: "Time", value: fmtTime(f.case_time) },
   { label: "Status", value: f.attended ? "Attended" : "Planned (follow-up)" },
   { label: "Products", value: f.products.join(", ") },
+  { label: "Attended by", value: f.attended ? (f.attended_by ? f.attended_by.full_name || f.attended_by.name : "Me") : "" },
   { label: "Used products", value: f.attended ? f.used_products : "" },
   { label: "Used items", value: f.attended && f.used_products === "Yes" ? usedItemsText(f.used_items) : "" },
   { label: "Notes", value: f.notes },
@@ -71,6 +73,7 @@ async function save() {
       payload: JSON.stringify({
         hospital: f.hospital, doctor: f.doctor ? f.doctor.name : "", case_date: f.case_date, case_time: f.case_time, attended: f.attended, notes: f.notes,
         products: f.products,
+        attended_by: f.attended && f.attended_by ? f.attended_by.name : "",
         used_products: f.attended ? f.used_products : "",
         used_items: f.attended && f.used_products === "Yes" ? f.used_items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
       }),
@@ -140,6 +143,7 @@ async function save() {
               <span class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all" :class="f.attended ? 'left-[22px]' : 'left-0.5'"></span>
             </span>
           </button>
+          <AttendeePick v-if="f.attended" v-model="f.attended_by" />
           <UsedItems v-if="f.attended" v-model:used="f.used_products" v-model:items="f.used_items" />
         </div>
       </section>

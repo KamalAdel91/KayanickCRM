@@ -6,6 +6,7 @@ import { fmt, fmtTime, usedItemsError } from "../ui"
 import Icon from "../components/Icon.vue"
 import FileList from "../components/FileList.vue"
 import UsedItems from "../components/UsedItems.vue"
+import AttendeePick from "../components/AttendeePick.vue"
 
 const route = useRoute()
 const router = useRouter()
@@ -20,10 +21,10 @@ const deleting = ref(false)
 const marking = ref(false)
 // marking attended asks "used products?" first
 const answering = ref(false)
-const ans = ref({ used: "", items: [] })
+const ans = ref({ used: "", items: [], by: null })
 function startAttend() {
   error.value = ""
-  ans.value = { used: "", items: [] }
+  ans.value = { used: "", items: [], by: null }
   answering.value = true
 }
 async function submitAttended(attended) {
@@ -36,6 +37,7 @@ async function submitAttended(attended) {
   try {
     await call("kayanick_crm.case_api.set_attended", {
       name: c.value.name, attended: attended ? 1 : 0, used_products: attended ? ans.value.used : "",
+      attended_by: attended && ans.value.by ? ans.value.by.name : "",
       used_items: attended && ans.value.used === "Yes" ? ans.value.items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
     }, { post: true })
     answering.value = false
@@ -84,6 +86,9 @@ onMounted(load)
             <div class="flex-1"><p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}<span v-if="c.case_time" class="text-gray-500"> · {{ fmtTime(c.case_time) }}</span></p></div>
             <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
           </div>
+          <div v-if="c.attended && c.attended_by_name" class="px-4 py-3">
+            <p class="text-xs text-gray-500">Attended by</p><p dir="auto">{{ c.attended_by_name }}</p>
+          </div>
         </div>
 
         <section v-if="c.products.length">
@@ -119,6 +124,7 @@ onMounted(load)
         <section v-if="answering">
           <p class="section-label"><Icon name="cart" :size="14" />Mark as attended</p>
           <div class="card space-y-3 p-4">
+            <AttendeePick v-model="ans.by" />
             <UsedItems v-model:used="ans.used" v-model:items="ans.items" />
             <div class="grid grid-cols-2 gap-2 pt-1">
               <button type="button" class="btn btn-subtle h-11" :disabled="marking" @click="answering = false">Cancel</button>

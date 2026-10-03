@@ -8,3 +8,4 @@ kayanick_crm.patches.v1.remove_sales_order_link
 kayanick_crm.patches.v1.remove_case_items
 kayanick_crm.patches.v1.mark_past_cases_attended
 kayanick_crm.patches.v1.set_has_next_visit
+kayanick_crm.patches.v1.set_case_attended_by

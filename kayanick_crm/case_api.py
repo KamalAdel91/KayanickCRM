@@ -64,7 +64,8 @@ def get_case(name):
     return {
         "name": doc.name, "hospital": doc.hospital, "doctor": doc.doctor,
         "doctor_title": frappe.db.get_value("KC Doctor", doc.doctor, "doctor_name") if doc.doctor else "",
-        "case_date": doc.case_date, "case_time": str(doc.case_time or ""), "attended": doc.attended, "notes": doc.notes, "sales_rep": doc.sales_rep,
+        "case_date": doc.case_date, "case_time": str(doc.case_time or ""), "attended": doc.attended,
+        "attended_by": doc.attended_by, "attended_by_name": frappe.utils.get_fullname(doc.attended_by) if doc.attended_by else "", "notes": doc.notes, "sales_rep": doc.sales_rep,
         "rep_name": frappe.utils.get_fullname(doc.sales_rep),
         "products": [p.product for p in doc.products],
         "used_products": doc.used_products or "",
@@ -83,13 +84,41 @@ def _used_rows(items):
             for r in (items or []) if r.get("item_code")]
 
 
-def _apply_used(doc, used_products, used_items):
+def _apply_used(doc, used_products, used_items, attended_by=None):
     if not doc.attended:
         return
+    doc.attended_by = _attendee(attended_by)
     if used_products not in ("Yes", "No"):
         frappe.throw(_("Did you use products in this case? Choose Yes or No"))
     doc.used_products = used_products
     doc.set("used_items", _used_rows(used_items) if used_products == "Yes" else [])
+
+
+ATTENDEE_ROLES = ("Sales Rep", "Sales Manager")
+
+
+def _attendee(user):
+    user = user or frappe.session.user
+    if user != frappe.session.user and not frappe.db.exists(
+        "Has Role", {"parent": user, "parenttype": "User", "role": ["in", ATTENDEE_ROLES]}
+    ):
+        frappe.throw(_("{0} is not a sales user").format(user))
+    return user
+
+
+@frappe.whitelist()
+def search_attendees(text=""):
+    """Sales reps and managers who can be picked as the one who attended a case."""
+    _check_role()
+    users = set(frappe.get_all("Has Role", filters={"parenttype": "User", "role": ["in", ATTENDEE_ROLES]},
+                               pluck="parent"))
+    users.add(frappe.session.user)
+    text = (text or "").strip()[:60]
+    kw = dict(filters={"name": ["in", list(users)], "enabled": 1}, fields=["name", "full_name"],
+              order_by="full_name asc", limit_page_length=100)
+    if text:
+        kw["or_filters"] = [["full_name", "like", "%" + text + "%"], ["name", "like", "%" + text + "%"]]
+    return frappe.get_all("User", **kw)
 
 
 @frappe.whitelist()
@@ -105,11 +134,11 @@ def search_items(text=""):
 
 
 @frappe.whitelist(methods=["POST"])
-def set_attended(name, attended=1, used_products=None, used_items=None):
+def set_attended(name, attended=1, used_products=None, used_items=None, attended_by=None):
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")
     doc.attended = 1 if frappe.utils.cint(attended) else 0
-    _apply_used(doc, used_products, used_items)
+    _apply_used(doc, used_products, used_items, attended_by)
     doc.save()
     return doc.attended
 
@@ -129,6 +158,6 @@ def create_case(payload):
         "notes": data.get("notes"),
         "products": [{"product": p} for p in (data.get("products") or []) if p],
     })
-    _apply_used(case, data.get("used_products"), data.get("used_items"))
+    _apply_used(case, data.get("used_products"), data.get("used_items"), data.get("attended_by"))
     case.insert()
     return {"case": case.name}

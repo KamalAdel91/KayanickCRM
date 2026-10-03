@@ -60,6 +60,17 @@
    "description": "Leave unticked for a planned case; it shows in the follow-ups until it is marked attended"
   },
   {
+   "fieldname": "attended_by",
+   "fieldtype": "Link",
+   "label": "Attended By",
+   "options": "User",
+   "depends_on": "eval:doc.attended",
+   "mandatory_depends_on": "eval:doc.attended",
+   "search_index": 1,
+   "in_standard_filter": 1,
+   "description": "Who actually attended the case (can differ from the rep who created it)"
+  },
+  {
    "fieldname": "cb_1",
    "fieldtype": "Column Break",
    "label": "Cb 1"
@@ -125,6 +136,7 @@
   "case_date",
   "case_time",
   "attended",
+  "attended_by",
   "cb_1",
   "sales_rep",
   "sb_products",

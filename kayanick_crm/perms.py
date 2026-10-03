@@ -46,12 +46,16 @@ def _condition(doctype, user):
     reps = visible_reps(user)
     if reps is None:
         return ""
-    return "`tab%s`.`sales_rep` in (%s)" % (doctype, ", ".join(frappe.db.escape(r) for r in sorted(reps)))
+    names = ", ".join(frappe.db.escape(r) for r in sorted(reps))
+    cond = "`tab%s`.`sales_rep` in (%s)" % (doctype, names)
+    if doctype == "KC Case":  # a case attended by someone else is theirs to see as well
+        cond = "(%s or `tabKC Case`.`attended_by` in (%s))" % (cond, names)
+    return cond
 
 
 def _allowed(doc, user):
     reps = visible_reps(user)
-    return reps is None or doc.get("sales_rep") in reps
+    return reps is None or doc.get("sales_rep") in reps or (doc.doctype == "KC Case" and doc.get("attended_by") in reps)
 
 
 def visit_query(user=None):
