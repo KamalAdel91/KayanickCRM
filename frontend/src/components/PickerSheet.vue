@@ -49,8 +49,9 @@ function pick(r) {
 }
 function close() { emit("update:open", false) }
 function create() {
-  emit("create", q.value.trim())
+  const text = q.value.trim()
   emit("update:open", false)
+  emit("create", text)
 }
 </script>
 
@@ -88,8 +89,8 @@ function create() {
             <span v-if="selected.includes(r.value)" class="badge badge-blue"><Icon name="check" :size="12" />Added<Icon v-if="multi" name="x" :size="12" /></span>
             <Icon v-else :name="multi ? 'plus' : 'chevron-right'" :size="16" class="text-gray-300" />
           </button>
-          <button v-if="createLabel && q.trim()" type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left text-brand-700 active:bg-gray-50" @click="create">
-            <Icon name="plus" :size="16" /><span class="truncate font-medium" dir="auto">{{ createLabel }} “{{ q.trim() }}”</span>
+          <button v-if="createLabel" type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left text-brand-700 active:bg-gray-50" @click="create">
+            <Icon name="plus" :size="16" /><span class="truncate font-medium" dir="auto">{{ createLabel }}<template v-if="q.trim()"> “{{ q.trim() }}”</template></span>
           </button>
         </div>
       </div>

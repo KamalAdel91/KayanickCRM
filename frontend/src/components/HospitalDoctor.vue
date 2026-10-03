@@ -1,8 +1,10 @@
 <script setup>
-import { ref, computed } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { call } from "../api"
+import { getOptions } from "../options"
 import PickerSheet from "./PickerSheet.vue"
 import PickField from "./PickField.vue"
+import AddSheet from "./AddSheet.vue"
 
 // hospital: name (string); doctor: { name, doctor_name, relationship_level } | null
 const hospital = defineModel("hospital", { type: String, default: "" })
@@ -21,6 +23,23 @@ async function fetchHospitals(text) {
 async function fetchDoctors(text) {
   const r = await call("kayanick_crm.mobile.search", { text })
   return r.doctors.map((d) => ({ value: d.name, label: d.doctor_name, sub: d.relationship_level || "", raw: d }))
+}
+// admins / sales managers can add a missing hospital or doctor from the picker
+const opts = ref({})
+onMounted(async () => { try { opts.value = await getOptions() } catch (e) {} })
+const adding = ref("")
+const addText = ref("")
+const addOpen = computed({ get: () => !!adding.value, set: (v) => { if (!v) adding.value = "" } })
+function startAdd(kind, text) {
+  addText.value = text || ""
+  adding.value = kind
+}
+function added(r) {
+  if (adding.value === "hospital") {
+    pickHospital({ value: r.name, sub: [r.area, r.hospital_type].filter(Boolean).join(" · ") })
+  } else {
+    pickDoctor({ raw: r })
+  }
 }
 function pickHospital(r) {
   hospital.value = r.value
@@ -45,7 +64,10 @@ function pickDoctor(r) {
       placeholder="Choose doctor" @open="sheet = 'doctor'" @clear="doctor = null" />
   </div>
   <PickerSheet v-model:open="hospitalOpen" title="Choose hospital" placeholder="Search hospitals or areas"
-    :fetcher="fetchHospitals" @pick="pickHospital" />
+    :fetcher="fetchHospitals" :create-label="opts.can_add_hospital ? 'Add hospital' : ''"
+    @pick="pickHospital" @create="(t) => startAdd('hospital', t)" />
   <PickerSheet v-model:open="doctorOpen" title="Choose doctor" placeholder="Search doctors"
-    :fetcher="fetchDoctors" @pick="pickDoctor" />
+    :fetcher="fetchDoctors" :create-label="opts.can_add_doctor ? 'Add doctor' : ''"
+    @pick="pickDoctor" @create="(t) => startAdd('doctor', t)" />
+  <AddSheet v-model:open="addOpen" :kind="adding || 'hospital'" :initial="addText" :options="opts" @added="added" />
 </template>

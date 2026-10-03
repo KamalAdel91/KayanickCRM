@@ -15,6 +15,8 @@ LIST_DTS = {
     "outcomes": "KC Visit Outcome",
     "levels": "KC Relationship Level",
     "products": "KC Product",
+    "areas": "KC Area",
+    "hospital_types": "KC Hospital Type",
 }
 
 
@@ -40,8 +42,49 @@ def _count(filters):
 
 @frappe.whitelist()
 def get_options():
-    return {k: frappe.get_list(dt, pluck="name", order_by="creation asc", limit_page_length=500)
-            for k, dt in LIST_DTS.items()}
+    out = {k: frappe.get_list(dt, pluck="name", order_by="creation asc", limit_page_length=500)
+           for k, dt in LIST_DTS.items()}
+    # admins and sales managers may add hospitals/doctors (same rule as the Desk permissions)
+    out["can_add_hospital"] = bool(frappe.has_permission("KC Hospital", "create"))
+    out["can_add_doctor"] = bool(frappe.has_permission("KC Doctor", "create"))
+    return out
+
+
+def _doctor_display(text):
+    """'dr ahmed  el gamal' -> 'Dr. Ahmed El Gamal' (Arabic names are kept as typed)."""
+    import re
+
+    text = re.sub(r"\s+", " ", (text or "").strip())
+    if not re.search(r"[A-Za-z]", text):
+        return text
+    text = re.sub(r"^(?:dr|doctor)\b\.?\s*", "", text, flags=re.I).strip()
+    return "Dr. " + " ".join(w[:1].upper() + w[1:].lower() for w in text.split(" ")) if text else ""
+
+
+@frappe.whitelist(methods=["POST"])
+def create_hospital(hospital_name, area=None, hospital_type=None):
+    frappe.has_permission("KC Hospital", "create", throw=True)
+    name = " ".join((hospital_name or "").split())
+    if not name:
+        frappe.throw(_("Hospital name is required"))
+    if frappe.db.exists("KC Hospital", {"hospital_name": name}):
+        frappe.throw(_("Hospital {0} already exists").format(name))
+    doc = frappe.get_doc({"doctype": "KC Hospital", "hospital_name": name,
+                          "area": area or None, "hospital_type": hospital_type or None}).insert()
+    return {"name": doc.name, "area": doc.area, "hospital_type": doc.hospital_type}
+
+
+@frappe.whitelist(methods=["POST"])
+def create_doctor(doctor_name, relationship_level=None):
+    frappe.has_permission("KC Doctor", "create", throw=True)
+    name = _doctor_display(doctor_name)
+    if not name:
+        frappe.throw(_("Doctor name is required"))
+    if frappe.db.exists("KC Doctor", {"doctor_name": name}):
+        frappe.throw(_("{0} already exists").format(name))
+    doc = frappe.get_doc({"doctype": "KC Doctor", "doctor_name": name,
+                          "relationship_level": relationship_level or None}).insert()
+    return {"name": doc.name, "doctor_name": doc.doctor_name, "relationship_level": doc.relationship_level}
 
 
 @frappe.whitelist()

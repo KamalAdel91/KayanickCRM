@@ -4,6 +4,8 @@ import { useRouter } from "vue-router"
 import { call } from "../api"
 import { fmt, initials, levelBadge } from "../ui"
 import Icon from "../components/Icon.vue"
+import AddSheet from "../components/AddSheet.vue"
+import { getOptions } from "../options"
 
 const router = useRouter()
 const q = ref("")
@@ -23,12 +25,26 @@ async function run() {
 watch(q, () => { clearTimeout(timer); timer = setTimeout(run, 300) })
 onMounted(run)
 
+const opts = ref({})
+onMounted(async () => { try { opts.value = await getOptions() } catch (e) {} })
+const adding = ref(false)
+const canAdd = () => (tab.value === "hospitals" ? opts.value.can_add_hospital : opts.value.can_add_doctor)
+function added(r) {
+  if (tab.value === "hospitals") router.push({ name: "hospital", params: { name: r.name } })
+  else router.push({ name: "doctor", params: { name: r.name } })
+}
+
 </script>
 
 <template>
   <div>
     <header class="page-head">
-      <div class="page-head-inner"><h1 class="page-title">Search</h1></div>
+      <div class="page-head-inner">
+        <h1 class="page-title flex-1">Search</h1>
+        <button v-if="canAdd()" type="button" class="btn btn-primary" @click="adding = true">
+          <Icon name="plus" :size="16" />{{ tab === "hospitals" ? "Hospital" : "Doctor" }}
+        </button>
+      </div>
     </header>
 
     <div class="wrap space-y-3 py-3">
@@ -80,5 +96,6 @@ onMounted(run)
         </div>
       </template>
     </div>
+    <AddSheet v-model:open="adding" :kind="tab === 'hospitals' ? 'hospital' : 'doctor'" :initial="q" :options="opts" @added="added" />
   </div>
 </template>
