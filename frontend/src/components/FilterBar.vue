@@ -11,15 +11,15 @@ const team = ref([])
 
 const statusOptions = computed(() => (props.kind === "visits"
   ? [{ label: "Positive", key: "outcome", value: "Positive" }, { label: "Negative", key: "outcome", value: "Negative" }]
-  : [{ label: "Planned", key: "attended", value: 0 }, { label: "Attended", key: "attended", value: 1 }]))
-const active = computed(() => ["from_date", "to_date", "sales_rep", "outcome", "attended"]
+  : []))  // cases: Planned / Attended are tabs on the Cases page
+const active = computed(() => ["from_date", "to_date", "sales_rep", "outcome"]
   .filter((k) => f.value[k] !== "" && f.value[k] !== undefined && f.value[k] !== null).length)
 
 function toggleStatus(o) {
   f.value[o.key] = f.value[o.key] === o.value ? "" : o.value
 }
 function clear() {
-  Object.assign(f.value, { from_date: "", to_date: "", sales_rep: "", outcome: "", attended: "" })
+  Object.assign(f.value, { from_date: "", to_date: "", sales_rep: "", outcome: "" })
 }
 onMounted(async () => {
   try { team.value = await call("kayanick_crm.mobile.get_team") } catch (e) {}
@@ -49,7 +49,7 @@ onMounted(async () => {
           <option v-for="r in team" :key="r.user" :value="r.user">{{ r.name }}</option>
         </select>
       </div>
-      <div class="flex flex-wrap gap-2">
+      <div v-if="statusOptions.length || active" class="flex flex-wrap gap-2">
         <button v-for="o in statusOptions" :key="o.label" type="button" class="chip" :class="{ 'chip-on': f[o.key] === o.value }" @click="toggleStatus(o)">{{ o.label }}</button>
         <button v-if="active" type="button" class="ml-auto text-sm text-brand-700" @click="clear">Clear</button>
       </div>

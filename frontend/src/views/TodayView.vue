@@ -146,14 +146,14 @@ onMounted(() => {
         </section>
 
         <section>
-          <p class="section-label"><Icon name="cart" :size="14" />Upcoming cases (next 7 days)</p>
+          <p class="section-label"><Icon name="cart" :size="14" /><span class="flex-1">Planned cases (next 7 days)</span><router-link to="/cases" class="text-brand-700">See all</router-link></p>
           <div v-if="!data.cases.length" class="empty"><Icon name="check" :size="24" /><p>No planned cases</p></div>
           <div v-else class="card divide-y divide-gray-100">
             <router-link v-for="c in data.cases" :key="c.name" :to="{ name: 'case-detail', params: { name: c.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
               <span class="h-2 w-2 shrink-0 rounded-full" :class="c.is_overdue ? 'bg-red-500' : c.is_today ? 'bg-amber-500' : 'bg-brand-500'"></span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate font-medium" dir="auto">{{ c.hospital }}</span>
-                <span class="block truncate text-xs text-gray-500" dir="auto">{{ [c.doctor_title, c.products.join(", ")].filter(Boolean).join(" · ") }}</span>
+                <span class="block truncate text-xs text-gray-500" dir="auto">{{ [c.doctor_title, c.products.join(", "), c.rep_name].filter(Boolean).join(" · ") }}</span>
               </span>
               <span class="badge" :class="c.is_overdue ? 'badge-red' : c.is_today ? 'badge-amber' : 'badge-gray'">{{ caseWhen(c) }}</span>
             </router-link>

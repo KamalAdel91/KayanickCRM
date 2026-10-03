@@ -12,7 +12,7 @@ def _check_role():
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
-CASE_FIELDS = ["name", "hospital", "doctor", "case_date", "case_time", "attended", "used_products", "sales_rep", "creation"]
+CASE_FIELDS = ["name", "hospital", "doctor", "case_date", "case_time", "attended", "attended_by", "used_products", "sales_rep", "creation"]
 
 
 def decorate(rows):
@@ -21,12 +21,13 @@ def decorate(rows):
 
     products = _products([r.name for r in rows])
     titles = _doctor_titles([r.doctor for r in rows])
-    names = full_names([r.sales_rep for r in rows])
+    names = full_names([r.sales_rep for r in rows] + [r.get("attended_by") for r in rows if r.get("attended_by")])
     for r in rows:
         r["case_time"] = str(r.case_time) if r.get("case_time") else ""
         r["products"] = products.get(r.name, [])
         r["doctor_title"] = titles.get(r.doctor, r.doctor)
         r["rep_name"] = names.get(r.sales_rep, r.sales_rep)
+        r["attended_by_name"] = names.get(r.get("attended_by"), r.get("attended_by") or "")
     return rows
 
 
@@ -38,8 +39,11 @@ def get_cases(args=None):
     if a.get("attended") in (0, 1, "0", "1"):
         filters.append(["attended", "=", frappe.utils.cint(a.attended)])
     start, limit = page_args(a)
+    # planned: nearest first; attended / all: newest first
+    planned = str(a.get("attended")) == "0"
+    order = "case_date asc, case_time asc, creation asc" if planned else "case_date desc, case_time desc, creation desc"
     rows = frappe.get_list("KC Case", filters=filters, or_filters=or_filters, fields=CASE_FIELDS,
-                           order_by="case_date desc, case_time desc, creation desc", limit_start=start, limit_page_length=limit)
+                           order_by=order, limit_start=start, limit_page_length=limit)
     return decorate(rows)
 
 
