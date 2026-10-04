@@ -1,0 +1,71 @@
+{
+ "doctype": "DocType",
+ "name": "KC Case Postponement",
+ "module": "KAYANICK CRM",
+ "custom": 0,
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "from_time",
+   "fieldtype": "Time",
+   "label": "From Time",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "to_time",
+   "fieldtype": "Time",
+   "label": "To Time",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "postponed_by",
+   "fieldtype": "Link",
+   "label": "Postponed By",
+   "options": "User",
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "postponed_on",
+   "fieldtype": "Datetime",
+   "label": "Postponed On",
+   "read_only": 1
+  }
+ ],
+ "field_order": [
+  "from_date",
+  "from_time",
+  "to_date",
+  "to_time",
+  "reason",
+  "postponed_by",
+  "postponed_on"
+ ],
+ "permissions": [],
+ "row_format": "Dynamic"
+}

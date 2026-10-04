@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { fmt, fmtTime, usedItemsError } from "../ui"
+import { fmt, fmtTime, usedItemsError, localToday } from "../ui"
 import Icon from "../components/Icon.vue"
 import FileList from "../components/FileList.vue"
 import UsedItems from "../components/UsedItems.vue"
@@ -25,7 +25,69 @@ const ans = ref({ used: "", items: [], by: null })
 function startAttend() {
   error.value = ""
   ans.value = { used: "", items: [], by: null }
+  postponing.value = false
+  cancelling.value = false
   answering.value = true
+}
+// cancel: reason is required; the case stays for history and can be reopened
+const cancelling = ref(false)
+const cancelReason = ref("")
+function startCancel() {
+  error.value = ""
+  cancelReason.value = ""
+  answering.value = false
+  postponing.value = false
+  cancelling.value = true
+}
+async function submitCancel() {
+  error.value = ""
+  if (!cancelReason.value.trim()) { error.value = "Write why the case is cancelled"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  marking.value = true
+  try {
+    await call("kayanick_crm.case_api.cancel_case", { name: c.value.name, reason: cancelReason.value }, { post: true })
+    cancelling.value = false
+    await load()
+  } catch (e) { error.value = e.message; window.scrollTo({ top: 0, behavior: "smooth" }) }
+  finally { marking.value = false }
+}
+async function reopen() {
+  if (!window.confirm("Reopen this case as planned?")) return
+  error.value = ""
+  marking.value = true
+  try {
+    await call("kayanick_crm.case_api.reopen_case", { name: c.value.name }, { post: true })
+    await load()
+  } catch (e) { error.value = e.message; window.scrollTo({ top: 0, behavior: "smooth" }) }
+  finally { marking.value = false }
+}
+// postpone: new date + time, optional reason; the old date/time is kept in the log
+const postponing = ref(false)
+const pp = ref({ date: "", time: "", reason: "" })
+const hhmm = (t) => {
+  const [h, m] = String(t || "").split(":")
+  return h ? h.padStart(2, "0") + ":" + (m || "00").padStart(2, "0") : ""
+}
+function startPostpone() {
+  error.value = ""
+  pp.value = { date: c.value.case_date < localToday() ? localToday() : c.value.case_date, time: hhmm(c.value.case_time), reason: "" }
+  answering.value = false
+  cancelling.value = false
+  postponing.value = true
+}
+async function submitPostpone() {
+  error.value = ""
+  const err = !pp.value.date || !pp.value.time ? "Choose the new date and time"
+    : pp.value.date < localToday() ? "The new date can't be in the past" : ""
+  if (err) { error.value = err; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  marking.value = true
+  try {
+    await call("kayanick_crm.case_api.postpone_case", {
+      name: c.value.name, case_date: pp.value.date, case_time: pp.value.time, reason: pp.value.reason,
+    }, { post: true })
+    postponing.value = false
+    await load()
+  } catch (e) { error.value = e.message; window.scrollTo({ top: 0, behavior: "smooth" }) }
+  finally { marking.value = false }
 }
 async function submitAttended(attended) {
   error.value = ""
@@ -84,7 +146,14 @@ onMounted(load)
           </div>
           <div class="flex items-center px-4 py-3">
             <div class="flex-1"><p class="text-xs text-gray-500">Case date</p><p>{{ fmt(c.case_date) }}<span v-if="c.case_time" class="text-gray-500"> · {{ fmtTime(c.case_time) }}</span></p></div>
-            <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
+            <span class="badge" :class="c.cancelled ? 'badge-red' : c.attended ? 'badge-green' : 'badge-amber'">{{ c.cancelled ? "Cancelled" : c.attended ? "Attended" : "Planned" }}</span>
+          </div>
+          <div v-if="c.postponements.length" class="flex items-center gap-1 px-4 py-2 text-xs text-amber-700">
+            <Icon name="calendar" :size="12" />Postponed {{ c.postponements.length }} time{{ c.postponements.length === 1 ? "" : "s" }}
+          </div>
+          <div v-if="c.cancelled" class="px-4 py-3">
+            <p class="text-xs text-gray-500">Cancelled{{ c.cancelled_by_name ? " by " + c.cancelled_by_name : "" }}</p>
+            <p class="whitespace-pre-line text-sm text-red-700" dir="auto">{{ c.cancel_reason }}</p>
           </div>
           <div v-if="c.attended && c.attended_by_name" class="px-4 py-3">
             <p class="text-xs text-gray-500">Attended by</p><p dir="auto">{{ c.attended_by_name }}</p>
@@ -121,6 +190,20 @@ onMounted(load)
           <div class="card p-4"><FileList :files="c.attachments" /></div>
         </section>
 
+        <section v-if="c.postponements.length">
+          <p class="section-label"><Icon name="calendar" :size="14" />Postponement log · {{ c.postponements.length }}</p>
+          <div class="card divide-y divide-gray-100">
+            <div v-for="(r, i) in [...c.postponements].reverse()" :key="i" class="px-4 py-2.5 text-sm">
+              <p>
+                <span class="text-gray-500 line-through">{{ fmt(r.from_date) }}<span v-if="r.from_time"> · {{ fmtTime(r.from_time) }}</span></span>
+                → <span class="font-medium">{{ fmt(r.to_date) }}<span v-if="r.to_time"> · {{ fmtTime(r.to_time) }}</span></span>
+              </p>
+              <p v-if="r.reason" class="whitespace-pre-line text-gray-700" dir="auto">{{ r.reason }}</p>
+              <p class="text-xs text-gray-400" dir="auto">{{ r.by }}</p>
+            </div>
+          </div>
+        </section>
+
         <section v-if="answering">
           <p class="section-label"><Icon name="cart" :size="14" />Mark as attended</p>
           <div class="card space-y-3 p-4">
@@ -132,13 +215,62 @@ onMounted(load)
             </div>
           </div>
         </section>
+        <section v-else-if="postponing">
+          <p class="section-label"><Icon name="calendar" :size="14" />Postpone case</p>
+          <div class="card space-y-3 p-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">New date<span class="text-red-500"> *</span></label>
+                <input v-model="pp.date" type="date" class="input" :min="localToday()" />
+              </div>
+              <div>
+                <label class="label">New time<span class="text-red-500"> *</span></label>
+                <input v-model="pp.time" type="time" class="input" />
+              </div>
+            </div>
+            <div>
+              <label class="label">Reason</label>
+              <textarea v-model="pp.reason" rows="2" placeholder="Why is it postponed? (optional)" class="input h-auto resize-none py-2" dir="auto"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button type="button" class="btn btn-subtle h-11" :disabled="marking" @click="postponing = false">Cancel</button>
+              <button type="button" class="btn btn-primary h-11" :disabled="marking" @click="submitPostpone">{{ marking ? "Saving…" : "Postpone" }}</button>
+            </div>
+          </div>
+        </section>
+        <section v-else-if="cancelling">
+          <p class="section-label"><Icon name="x" :size="14" />Cancel case</p>
+          <div class="card space-y-3 p-4">
+            <div>
+              <label class="label">Reason<span class="text-red-500"> *</span></label>
+              <textarea v-model="cancelReason" rows="2" placeholder="Why is the case cancelled?" class="input h-auto resize-none py-2" dir="auto"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button type="button" class="btn btn-subtle h-11" :disabled="marking" @click="cancelling = false">Back</button>
+              <button type="button" class="btn h-11 border border-red-200 bg-red-600 text-white" :disabled="marking" @click="submitCancel">{{ marking ? "Saving…" : "Cancel case" }}</button>
+            </div>
+          </div>
+        </section>
         <template v-else-if="c.can_edit">
-          <button v-if="c.attended" type="button" class="btn btn-subtle h-11 w-full" :disabled="marking" @click="submitAttended(false)">
+          <button v-if="c.cancelled" type="button" class="btn btn-subtle h-11 w-full" :disabled="marking" @click="reopen">
+            <Icon name="refresh" :size="16" />Reopen case
+          </button>
+          <button v-else-if="c.attended" type="button" class="btn btn-subtle h-11 w-full" :disabled="marking" @click="submitAttended(false)">
             <Icon name="calendar" :size="16" />Mark as planned
           </button>
-          <button v-else type="button" class="btn btn-primary h-11 w-full" @click="startAttend">
-            <Icon name="check" :size="16" />Mark as attended
-          </button>
+          <template v-else>
+            <button type="button" class="btn btn-primary h-11 w-full" @click="startAttend">
+              <Icon name="check" :size="16" />Mark as attended
+            </button>
+            <div v-if="c.can_postpone" class="grid grid-cols-2 gap-2">
+              <button type="button" class="btn btn-subtle h-11" @click="startPostpone">
+                <Icon name="calendar" :size="16" />Postpone
+              </button>
+              <button type="button" class="btn h-11 border border-red-200 bg-red-50 text-red-700" @click="startCancel">
+                <Icon name="x" :size="16" />Cancel case
+              </button>
+            </div>
+          </template>
         </template>
         <button v-if="c.can_delete" type="button" class="btn h-11 w-full border border-red-200 bg-red-50 text-red-700" :disabled="deleting" @click="remove">
           {{ deleting ? "Deleting…" : "Delete case" }}

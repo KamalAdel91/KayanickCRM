@@ -1,0 +1,25 @@
+{
+ "doctype": "DocType",
+ "name": "KC Case Doctor",
+ "module": "KAYANICK CRM",
+ "custom": 0,
+ "istable": 1,
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "doctor",
+   "fieldtype": "Link",
+   "label": "Doctor",
+   "options": "KC Doctor",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  }
+ ],
+ "field_order": [
+  "doctor"
+ ],
+ "permissions": [],
+ "row_format": "Dynamic"
+}

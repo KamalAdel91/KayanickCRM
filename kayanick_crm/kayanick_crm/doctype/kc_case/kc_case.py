@@ -10,6 +10,14 @@ class KCCase(Document):
             self.sales_rep = frappe.session.user
 
     def validate(self):
+        from kayanick_crm.mobile import sync_doctors
+
+        sync_doctors(self)
+        self.postponed_count = len(self.postponements or [])
+        if self.attended and self.cancelled:
+            frappe.throw(_("A cancelled case can't be marked attended. Reopen it first"))
+        if not self.cancelled:
+            self.cancelled_by = self.cancelled_on = self.cancel_reason = None
         # used items are info only (no stock effect); they only make sense once the case is attended
         if not self.attended:
             self.used_products = ""

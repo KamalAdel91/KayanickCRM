@@ -13,7 +13,7 @@ const route = useRoute()
 const router = useRouter()
 const opts = ref({ purposes: [], outcomes: [], levels: [], products: [] })
 const f = reactive({
-  hospital: "", hospitalSub: "", doctor: null, visit_date: localToday(), purpose: "", outcome: "", level: "",
+  hospital: "", hospitalSub: "", doctors: [], visit_date: localToday(), purpose: "", outcome: "", level: "",
   products: [], order: false, notes: "", next_action: "", has_next: "", next_visit_date: "",
 })
 const levelTouched = ref(false)
@@ -27,7 +27,8 @@ const error = ref("")
 const geoLabel = computed(() => (geo.value ? "Location on" : geoState.value === "locating" ? "Locating…" : "No location"))
 
 function doctorPicked(d) {
-  if (d && d.relationship_level && !levelTouched.value) f.level = d.relationship_level
+  // the relationship level follows the first (primary) doctor
+  if (d && d.relationship_level && !levelTouched.value && !f.level) f.level = d.relationship_level
 }
 function pickLevel(l) {
   levelTouched.value = true
@@ -48,8 +49,8 @@ onMounted(async () => {
   if (route.query.hospital) f.hospital = route.query.hospital
   if (route.query.doctor) {
     try {
-      f.doctor = await call("kayanick_crm.mobile.get_doctor", { name: route.query.doctor })
-      doctorPicked(f.doctor)
+      const d = await call("kayanick_crm.mobile.get_doctor", { name: route.query.doctor })
+      if (d) { f.doctors = [d]; doctorPicked(d) }
     } catch (e) {}
   }
   if (!navigator.geolocation) { geoState.value = "unsupported"; return }
@@ -62,7 +63,7 @@ onMounted(async () => {
 
 const summary = computed(() => [
   { label: "Hospital", value: f.hospital },
-  { label: "Doctor", value: f.doctor ? f.doctor.doctor_name : "" },
+  { label: f.doctors.length > 1 ? "Doctors" : "Doctor", value: f.doctors.map((d) => d.doctor_name).join(", ") },
   { label: "Date", value: f.visit_date },
   { label: "Purpose", value: f.purpose },
   { label: "Outcome", value: f.outcome },
@@ -77,7 +78,7 @@ const summary = computed(() => [
 
 function missing() {
   if (!f.hospital) return "Choose a hospital first"
-  if (!f.doctor) return "Choose a doctor"
+  if (!f.doctors.length) return "Choose at least one doctor"
   if (!f.visit_date) return "Choose the visit date"
   if (!f.purpose) return "Choose the visit purpose"
   if (!f.outcome) return "Choose the visit outcome"
@@ -99,7 +100,7 @@ async function save() {
   error.value = missing()
   if (error.value) { confirming.value = false; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   const payload = {
-    hospital: f.hospital, doctor: f.doctor ? f.doctor.name : "", visit_date: f.visit_date,
+    hospital: f.hospital, doctors: f.doctors.map((d) => d.name), visit_date: f.visit_date,
     visit_purpose: f.purpose, visit_outcome: f.outcome, relationship_level: f.level,
     products: f.products, order_expected: f.order, notes: f.notes,
     next_action: f.next_action, has_next_visit: f.has_next,
@@ -146,7 +147,7 @@ async function save() {
       <section>
         <p class="section-label"><Icon name="building" :size="14" />Hospital &amp; doctor</p>
         <div class="card space-y-4 p-4">
-          <HospitalDoctor v-model:hospital="f.hospital" v-model:hospital-sub="f.hospitalSub" v-model:doctor="f.doctor"
+          <HospitalDoctor v-model:hospital="f.hospital" v-model:hospital-sub="f.hospitalSub" v-model:doctors="f.doctors"
             @doctor-picked="doctorPicked" />
           <div>
             <label class="label">Date<span class="text-red-500"> *</span></label>

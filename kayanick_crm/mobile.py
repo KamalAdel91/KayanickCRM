@@ -29,6 +29,70 @@ def _doctor_titles(names):
     return {r.name: r.doctor_name for r in rows}
 
 
+DOCTOR_CHILD = {"KC Visit": "KC Visit Doctor", "KC Case": "KC Case Doctor"}
+
+
+def sync_doctors(doc):
+    """Drops empty/duplicate doctor rows and keeps the hidden `doctor` field = first (primary) doctor."""
+    seen, rows = set(), []
+    for r in doc.get("doctors") or []:
+        if r.doctor and r.doctor not in seen:
+            seen.add(r.doctor)
+            rows.append(r)
+    if not rows:
+        frappe.throw(_("Add at least one doctor"))
+    doc.set("doctors", rows)
+    doc.doctor = rows[0].doctor
+
+
+def doctor_list(data):
+    """Doctor names from an API payload ("doctors": [...], or the old single "doctor"), in order, no duplicates."""
+    names = data.get("doctors") or ([data.get("doctor")] if data.get("doctor") else [])
+    out = []
+    for n in names:
+        n = n.get("name") if isinstance(n, dict) else n
+        if n and n not in out:
+            out.append(n)
+    return out
+
+
+def doctors_of(parenttype, names):
+    out = {}
+    if names:
+        for r in frappe.get_all(DOCTOR_CHILD[parenttype], filters={"parent": ["in", names], "parenttype": parenttype},
+                                fields=["parent", "doctor"], order_by="idx asc"):
+            out.setdefault(r.parent, []).append(r.doctor)
+    return out
+
+
+def add_doctor_titles(parenttype, rows):
+    """Sets row.doctors (names) and row.doctor_title ("Dr. A, Dr. B") on visit/case rows."""
+    docs = doctors_of(parenttype, [r.name for r in rows])
+    titles = _doctor_titles([d for ds in docs.values() for d in ds] + [r.get("doctor") for r in rows])
+    for r in rows:
+        ds = docs.get(r.name) or ([r.doctor] if r.get("doctor") else [])
+        r["doctors"] = ds
+        r["doctor_title"] = ", ".join(titles.get(d, d) for d in ds)
+    return rows
+
+
+def doctors_text(doc):
+    """Doctor names of a loaded visit/case, for notifications (no permission checks)."""
+    names = [r.doctor for r in doc.get("doctors") or []] or ([doc.doctor] if doc.get("doctor") else [])
+    if not names:
+        return ""
+    titles = dict(frappe.get_all("KC Doctor", filters={"name": ["in", names]}, fields=["name", "doctor_name"], as_list=True))
+    return ", ".join(titles.get(n) or n for n in names)
+
+
+def parents_with(parenttype, doctors):
+    """Visits/cases that have any of these doctors."""
+    if not doctors:
+        return []
+    return frappe.get_all(DOCTOR_CHILD[parenttype], filters={"doctor": ["in", doctors], "parenttype": parenttype},
+                          pluck="parent", distinct=True, limit_page_length=0)
+
+
 def full_names(users):
     users = sorted({u for u in users if u})
     if not users:
@@ -99,9 +163,7 @@ def get_today():
         filters={"sales_rep": user, "visit_date": [">=", add_days(today(), -180)]},
         fields=fields, order_by="visit_date desc, creation desc", limit_page_length=500,
     )
-    titles = _doctor_titles([v.doctor for v in visits])
-    for v in visits:
-        v["doctor_title"] = titles.get(v.doctor, v.doctor)
+    add_doctor_titles("KC Visit", visits)
 
     seen, due = set(), []
     for v in visits:  # newest first: only the latest visit per hospital + doctor decides the follow-up
@@ -118,7 +180,7 @@ def get_today():
 
     cases = frappe.get_list(
         "KC Case",
-        filters={"attended": 0, "case_date": ["<=", horizon]},  # planned cases are open to everyone
+        filters={"attended": 0, "cancelled": 0, "case_date": ["<=", horizon]},  # planned cases are open to everyone
         fields=["name", "hospital", "doctor", "case_date", "case_time"], order_by="case_date asc, case_time asc", limit_page_length=100,
     )
     from kayanick_crm.case_api import decorate
@@ -135,7 +197,7 @@ def get_today():
         "month_positive": _count(month + [["visit_outcome", "=", "Positive"]]),
         "month_orders": _count(month + [["order_expected", "=", 1]]),
         "due": sum(1 for v in due if getdate(v.next_visit_date) <= day),
-        "month_cases": len(frappe.get_list("KC Case", filters={"case_date": ["between", [get_first_day(today()), get_last_day(today())]]},
+        "month_cases": len(frappe.get_list("KC Case", filters={"cancelled": 0, "case_date": ["between", [get_first_day(today()), get_last_day(today())]]},
                                            pluck="name", limit_page_length=100000)),
         "cases_due": sum(1 for c in cases if getdate(c.case_date) <= day),
     }
@@ -170,10 +232,14 @@ def get_profile(doctype, name):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     doc = frappe.get_doc(doctype, name)
     doc.check_permission("read")
-    key = "hospital" if doctype == "KC Hospital" else "doctor"
+    def by(dt):
+        if doctype == "KC Hospital":
+            return {"hospital": name}
+        return {"name": ["in", parents_with(dt, [name]) or [""]]}
+
     counts = {
-        "visits": len(frappe.get_list("KC Visit", filters={key: name}, pluck="name", limit_page_length=100000)),
-        "cases": len(frappe.get_list("KC Case", filters={key: name}, pluck="name", limit_page_length=100000)),
+        "visits": len(frappe.get_list("KC Visit", filters=by("KC Visit"), pluck="name", limit_page_length=100000)),
+        "cases": len(frappe.get_list("KC Case", filters=by("KC Case"), pluck="name", limit_page_length=100000)),
     }
     info = {"name": doc.name, "title": doc.get("hospital_name") or doc.get("doctor_name"),
             "last_visit": doc.last_visit, "next_visit": doc.next_visit, "customer": doc.get("customer")}
@@ -187,13 +253,15 @@ def get_profile(doctype, name):
 PAGE = 50
 
 
-def list_filters(date_field, args):
+def list_filters(date_field, args, doctype):
     """Filters shared by the visits and cases lists. Row-level (team) permissions still apply on top."""
     a = frappe._dict(frappe.parse_json(args) if isinstance(args, str) else (args or {}))
     filters, or_filters = [], []
-    for key in ("hospital", "doctor", "sales_rep"):
+    for key in ("hospital", "sales_rep"):
         if a.get(key):
             filters.append([key, "=", a[key]])
+    if a.get("doctor"):
+        filters.append(["name", "in", parents_with(doctype, [a.doctor]) or [""]])
     if a.get("from_date"):
         filters.append([date_field, ">=", a.from_date])
     if a.get("to_date"):
@@ -202,8 +270,9 @@ def list_filters(date_field, args):
     if text:
         doctors = frappe.get_all("KC Doctor", filters={"doctor_name": ["like", "%" + text + "%"]}, pluck="name", limit=300)
         or_filters = [["hospital", "like", "%" + text + "%"]]
-        if doctors:
-            or_filters.append(["doctor", "in", doctors])
+        parents = parents_with(doctype, doctors)
+        if parents:
+            or_filters.append(["name", "in", parents])
     return a, filters, or_filters
 
 
@@ -231,7 +300,7 @@ def get_team():
 
 @frappe.whitelist()
 def get_visits(args=None):
-    a, filters, or_filters = list_filters("visit_date", args)
+    a, filters, or_filters = list_filters("visit_date", args, "KC Visit")
     if a.get("outcome"):
         filters.append(["visit_outcome", "=", a.outcome])
     start, limit = page_args(a)
@@ -240,10 +309,9 @@ def get_visits(args=None):
         filters=filters, or_filters=or_filters,
         order_by="visit_date desc, creation desc", limit_start=start, limit_page_length=limit,
     )
-    titles = _doctor_titles([r.doctor for r in rows])
+    add_doctor_titles("KC Visit", rows)
     names = full_names([r.sales_rep for r in rows])
     for r in rows:
-        r["doctor_title"] = titles.get(r.doctor, r.doctor)
         r["rep_name"] = names.get(r.sales_rep, r.sales_rep)
     return rows
 
@@ -258,7 +326,8 @@ def get_visit(name):
     out.update({
         "name": doc.name, "sales_rep": get_fullname(doc.sales_rep), "order_expected": doc.order_expected,
         "check_in_time": doc.check_in_time, "products": [p.product for p in doc.products],
-        "doctor_title": _doctor_titles([doc.doctor]).get(doc.doctor, doc.doctor),
+        "doctor_title": doctors_text(doc),
+        "doctors": [r.doctor for r in doc.doctors],
         "attachments": attachments("KC Visit", doc.name),
         "can_delete": bool(frappe.has_permission("KC Visit", "delete", doc=doc)),
     })
@@ -283,8 +352,10 @@ def create_visit(payload):
         frappe.throw(_("Hospital is required"))
     if not frappe.db.exists("KC Hospital", hospital):
         frappe.throw(_("Hospital {0} not found").format(hospital))
-    if not clean.get("doctor"):
-        frappe.throw(_("Doctor is required"))
+    doctors = doctor_list(data)
+    if not doctors:
+        frappe.throw(_("Choose at least one doctor"))
+    clean["doctor"] = doctors[0]
     clean.setdefault("visit_date", today())
 
     visit = frappe.get_doc({
@@ -294,6 +365,8 @@ def create_visit(payload):
         "check_in_time": now(),
         **clean,
     })
+    for d in doctors:
+        visit.append("doctors", {"doctor": d})
     for product in data.get("products") or []:
         if product:
             visit.append("products", {"product": product})

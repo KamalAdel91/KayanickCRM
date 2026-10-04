@@ -92,7 +92,9 @@ def _visit_to_managers(name):
     v = frappe.get_doc("KC Visit", name)
     what = "an order expected" if v.order_expected else "a positive visit"
     rep = get_fullname(v.sales_rep)
-    doctor = frappe.db.get_value("KC Doctor", v.doctor, "doctor_name") if v.doctor else ""
+    from kayanick_crm.mobile import doctors_text
+
+    doctor = doctors_text(v)
     msg = "{0} logged {1} at {2}".format(rep, what, v.hospital)
     title = "🛒 Order expected" if v.order_expected else "🟢 Positive visit"
     body = " · ".join(x for x in (rep, v.hospital, doctor) if x)
@@ -113,7 +115,9 @@ def _case_to_managers(name):
     c = frappe.get_doc("KC Case", name)
     at = (" " + _hm(c.case_time)) if c.case_time else ""
     when = "" if c.attended else " for " + getdate(c.case_date).strftime("%d %b") + at
-    doctor = frappe.db.get_value("KC Doctor", c.doctor, "doctor_name") if c.doctor else ""
+    from kayanick_crm.mobile import doctors_text
+
+    doctor = doctors_text(c)
     rep = get_fullname(c.sales_rep)
     msg = "{0} added a case{1}: {2}{3}".format(rep, when, c.hospital, " / " + doctor if doctor else "")
     title = "📅 Planned case · " + getdate(c.case_date).strftime("%d %b") + at if not c.attended else "🩺 New case"
@@ -122,18 +126,31 @@ def _case_to_managers(name):
         notify(m, msg, "KC Case", c.name, c.sales_rep, title=title, body=body)
 
 
+def _case_cancelled_to_managers(name):
+    from kayanick_crm.mobile import doctors_text
+
+    c = frappe.get_doc("KC Case", name)
+    by = get_fullname(c.cancelled_by)
+    doctor = doctors_text(c)
+    msg = "{0} cancelled a case: {1}{2}".format(by, c.hospital, " / " + doctor if doctor else "")
+    title = "❌ Case cancelled · " + getdate(c.case_date).strftime("%d %b")
+    body = " · ".join(x for x in (by, c.hospital, c.cancel_reason) if x)
+    for m in (managers_of(c.sales_rep) | {c.sales_rep}) - {c.cancelled_by}:
+        notify(m, msg, "KC Case", c.name, c.cancelled_by, title=title, body=body)
+
+
 # ---- daily reminder (scheduler) ----
 
 def morning_reminder():
     day = getdate(today())
     reps = set(frappe.get_all("KC Visit", filters={"next_visit_date": ["<=", day]}, pluck="sales_rep", distinct=True))
-    reps |= set(frappe.get_all("KC Case", filters={"attended": 0, "case_date": ["<=", day]}, pluck="sales_rep", distinct=True))
+    reps |= set(frappe.get_all("KC Case", filters={"attended": 0, "cancelled": 0, "case_date": ["<=", day]}, pluck="sales_rep", distinct=True))
     for rep in reps:
         if not rep or not frappe.db.get_value("User", rep, "enabled"):
             continue
         follow_ups = _due_follow_ups(rep, day)
-        today_cases = frappe.db.count("KC Case", {"sales_rep": rep, "attended": 0, "case_date": day})
-        overdue_cases = frappe.db.count("KC Case", {"sales_rep": rep, "attended": 0, "case_date": ["<", day]})
+        today_cases = frappe.db.count("KC Case", {"sales_rep": rep, "attended": 0, "cancelled": 0, "case_date": day})
+        overdue_cases = frappe.db.count("KC Case", {"sales_rep": rep, "attended": 0, "cancelled": 0, "case_date": ["<", day]})
         parts = []
         if follow_ups:
             parts.append("{0} follow-up{1}".format(follow_ups, "" if follow_ups == 1 else "s"))

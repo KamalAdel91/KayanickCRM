@@ -104,7 +104,7 @@ function back() {
                 <p class="truncate font-medium" dir="auto">{{ isHospital ? c.doctor_title : c.hospital }}</p>
                 <p class="truncate text-xs text-gray-500" dir="auto">{{ [fmt(c.case_date) + (c.case_time ? ' · ' + fmtTime(c.case_time) : ''), c.products.join(", "), c.rep_name].filter(Boolean).join(" · ") }}</p>
               </div>
-              <span class="badge" :class="c.attended ? 'badge-green' : 'badge-amber'">{{ c.attended ? "Attended" : "Planned" }}</span>
+              <span class="badge" :class="c.cancelled ? 'badge-red' : c.attended ? 'badge-green' : 'badge-amber'">{{ c.cancelled ? "Cancelled" : c.attended ? "Attended" : "Planned" }}</span>
               <Icon name="chevron-right" :size="16" class="text-gray-300" />
             </router-link>
           </div>

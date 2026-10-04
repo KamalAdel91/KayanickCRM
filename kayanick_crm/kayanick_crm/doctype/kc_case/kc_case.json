@@ -27,12 +27,20 @@
   {
    "fieldname": "doctor",
    "fieldtype": "Link",
-   "label": "Doctor",
+   "label": "Primary Doctor",
    "options": "KC Doctor",
-   "reqd": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "search_index": 1
+   "reqd": 0,
+   "search_index": 1,
+   "read_only": 1,
+   "hidden": 1,
+   "description": "First doctor in the Doctors table (kept in sync automatically)"
+  },
+  {
+   "fieldname": "doctors",
+   "fieldtype": "Table MultiSelect",
+   "label": "Doctors",
+   "options": "KC Case Doctor",
+   "reqd": 1
   },
   {
    "fieldname": "case_date",
@@ -69,6 +77,38 @@
    "search_index": 1,
    "in_standard_filter": 1,
    "description": "Who actually attended the case (can differ from the rep who created it)"
+  },
+  {
+   "fieldname": "cancelled",
+   "fieldtype": "Check",
+   "label": "Cancelled",
+   "default": "0",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "cancelled_by",
+   "fieldtype": "Link",
+   "label": "Cancelled By",
+   "options": "User",
+   "read_only": 1,
+   "depends_on": "eval:doc.cancelled"
+  },
+  {
+   "fieldname": "cancelled_on",
+   "fieldtype": "Datetime",
+   "label": "Cancelled On",
+   "read_only": 1,
+   "depends_on": "eval:doc.cancelled"
+  },
+  {
+   "fieldname": "cancel_reason",
+   "fieldtype": "Small Text",
+   "label": "Cancel Reason",
+   "read_only": 1,
+   "depends_on": "eval:doc.cancelled"
   },
   {
    "fieldname": "cb_1",
@@ -127,16 +167,43 @@
    "options": "KC Case Used Item",
    "depends_on": "eval:doc.attended && doc.used_products=='Yes'",
    "mandatory_depends_on": "eval:doc.attended && doc.used_products=='Yes'"
+  },
+  {
+   "fieldname": "sb_postponed",
+   "fieldtype": "Section Break",
+   "label": "Postponements",
+   "collapsible": 1,
+   "depends_on": "eval:doc.postponed_count"
+  },
+  {
+   "fieldname": "postponed_count",
+   "fieldtype": "Int",
+   "label": "Times Postponed",
+   "read_only": 1,
+   "default": "0",
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "postponements",
+   "fieldtype": "Table",
+   "label": "Postponement Log",
+   "options": "KC Case Postponement",
+   "read_only": 1
   }
  ],
  "field_order": [
   "naming_series",
   "hospital",
   "doctor",
+  "doctors",
   "case_date",
   "case_time",
   "attended",
   "attended_by",
+  "cancelled",
+  "cancelled_by",
+  "cancelled_on",
+  "cancel_reason",
   "cb_1",
   "sales_rep",
   "sb_products",
@@ -144,7 +211,10 @@
   "notes",
   "sb_used",
   "used_products",
-  "used_items"
+  "used_items",
+  "sb_postponed",
+  "postponed_count",
+  "postponements"
  ],
  "permissions": [
   {

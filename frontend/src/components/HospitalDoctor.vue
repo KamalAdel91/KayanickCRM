@@ -5,11 +5,12 @@ import { getOptions } from "../options"
 import PickerSheet from "./PickerSheet.vue"
 import PickField from "./PickField.vue"
 import AddSheet from "./AddSheet.vue"
+import Icon from "./Icon.vue"
 
-// hospital: name (string); doctor: { name, doctor_name, relationship_level } | null
+// hospital: name (string); doctors: [{ name, doctor_name, relationship_level }]
 const hospital = defineModel("hospital", { type: String, default: "" })
 const hospitalSub = defineModel("hospitalSub", { type: String, default: "" })
-const doctor = defineModel("doctor", { type: Object, default: null })
+const doctors = defineModel("doctors", { type: Array, default: () => [] })
 const emit = defineEmits(["doctor-picked"])
 
 const sheet = ref("")
@@ -44,11 +45,16 @@ function added(r) {
 function pickHospital(r) {
   hospital.value = r.value
   hospitalSub.value = r.sub
-  if (!doctor.value) sheet.value = "doctor"
+  if (!doctors.value.length) sheet.value = "doctor"
 }
 function pickDoctor(r) {
-  doctor.value = r ? r.raw : null
-  if (r) emit("doctor-picked", r.raw)
+  if (!r || !r.raw) return
+  if (doctors.value.some((d) => d.name === r.raw.name)) return
+  doctors.value = [...doctors.value, r.raw]
+  emit("doctor-picked", r.raw)
+}
+function removeDoctor(name) {
+  doctors.value = doctors.value.filter((d) => d.name !== name)
 }
 </script>
 
@@ -59,9 +65,20 @@ function pickDoctor(r) {
       @open="sheet = 'hospital'" @clear="hospital = ''; hospitalSub = ''" />
   </div>
   <div>
-    <label class="label">Doctor</label>
-    <PickField :value="doctor ? doctor.doctor_name : ''" :sub="doctor ? doctor.relationship_level : ''" icon="user"
-      placeholder="Choose doctor" @open="sheet = 'doctor'" @clear="doctor = null" />
+    <label class="label">Doctors<span class="text-red-500"> *</span><span v-if="doctors.length" class="text-gray-400"> · {{ doctors.length }}</span></label>
+    <div class="space-y-2">
+      <div v-for="d in doctors" :key="d.name" class="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2">
+        <Icon name="user" :size="16" class="shrink-0 text-gray-400" />
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-sm font-medium" dir="auto">{{ d.doctor_name }}</span>
+          <span v-if="d.relationship_level" class="block text-xs text-gray-400">{{ d.relationship_level }}</span>
+        </span>
+        <button type="button" class="p-1 text-gray-400" aria-label="Remove doctor" @click="removeDoctor(d.name)"><Icon name="x" :size="16" /></button>
+      </div>
+      <button type="button" class="btn btn-subtle h-10 w-full" @click="sheet = 'doctor'">
+        <Icon name="plus" :size="15" />{{ doctors.length ? "Add another doctor" : "Choose doctor" }}
+      </button>
+    </div>
   </div>
   <PickerSheet v-model:open="hospitalOpen" title="Choose hospital" placeholder="Search hospitals or areas"
     :fetcher="fetchHospitals" :create-label="opts.can_add_hospital ? 'Add hospital' : ''"

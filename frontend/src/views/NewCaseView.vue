@@ -13,7 +13,7 @@ import { uploadFiles } from "../upload"
 
 const route = useRoute()
 const router = useRouter()
-const f = reactive({ hospital: "", hospitalSub: "", doctor: null, case_date: localToday(), case_time: "", attended: true, notes: "", products: [], used_products: "", used_items: [], attended_by: null })
+const f = reactive({ hospital: "", hospitalSub: "", doctors: [], case_date: localToday(), case_time: "", attended: true, notes: "", products: [], used_products: "", used_items: [], attended_by: null })
 const productOptions = ref([])
 watch(() => f.case_date, (d) => { f.attended = !!d && d <= localToday() })
 const saving = ref(false)
@@ -32,7 +32,10 @@ onMounted(async () => {
   catch (e) { error.value = e.message }
   if (route.query.hospital) f.hospital = route.query.hospital
   if (route.query.doctor) {
-    try { f.doctor = await call("kayanick_crm.mobile.get_doctor", { name: route.query.doctor }) } catch (e) {}
+    try {
+      const d = await call("kayanick_crm.mobile.get_doctor", { name: route.query.doctor })
+      if (d) f.doctors = [d]
+    } catch (e) {}
   }
 })
 function back() {
@@ -42,7 +45,7 @@ function back() {
 
 const summary = computed(() => [
   { label: "Hospital", value: f.hospital },
-  { label: "Doctor", value: f.doctor ? f.doctor.doctor_name : "" },
+  { label: f.doctors.length > 1 ? "Doctors" : "Doctor", value: f.doctors.map((d) => d.doctor_name).join(", ") },
   { label: "Case date", value: f.case_date },
   { label: "Time", value: fmtTime(f.case_time) },
   { label: "Status", value: f.attended ? "Attended" : "Planned (follow-up)" },
@@ -57,7 +60,7 @@ const summary = computed(() => [
 function askSave() {
   error.value = ""
   if (!f.hospital) { error.value = "Choose a hospital first"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
-  if (!f.doctor) { error.value = "Choose a doctor"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
+  if (!f.doctors.length) { error.value = "Choose at least one doctor"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   const req = !f.case_date ? "Choose the case date" : !f.case_time ? "Choose the case time" : !f.products.length ? "Choose at least one product" : !f.notes.trim() ? "Write the notes" : ""
   if (req) { error.value = req; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   const usedErr = f.attended ? usedItemsError(f.used_products, f.used_items) : ""
@@ -71,7 +74,7 @@ async function save() {
   try {
     const r = await call("kayanick_crm.case_api.create_case", {
       payload: JSON.stringify({
-        hospital: f.hospital, doctor: f.doctor ? f.doctor.name : "", case_date: f.case_date, case_time: f.case_time, attended: f.attended, notes: f.notes,
+        hospital: f.hospital, doctors: f.doctors.map((d) => d.name), case_date: f.case_date, case_time: f.case_time, attended: f.attended, notes: f.notes,
         products: f.products,
         attended_by: f.attended && f.attended_by ? f.attended_by.name : "",
         used_products: f.attended ? f.used_products : "",
@@ -105,7 +108,7 @@ async function save() {
       <section>
         <p class="section-label"><Icon name="building" :size="14" />Hospital &amp; doctor</p>
         <div class="card space-y-4 p-4">
-          <HospitalDoctor v-model:hospital="f.hospital" v-model:hospital-sub="f.hospitalSub" v-model:doctor="f.doctor" />
+          <HospitalDoctor v-model:hospital="f.hospital" v-model:hospital-sub="f.hospitalSub" v-model:doctors="f.doctors" />
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="label">Case date<span class="text-red-500"> *</span></label>

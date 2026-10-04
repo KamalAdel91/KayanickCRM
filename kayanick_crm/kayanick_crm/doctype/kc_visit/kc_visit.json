@@ -46,11 +46,20 @@
   {
    "fieldname": "doctor",
    "fieldtype": "Link",
-   "label": "Doctor",
+   "label": "Primary Doctor",
    "options": "KC Doctor",
-   "in_list_view": 1,
-   "reqd": 1,
-   "search_index": 1
+   "reqd": 0,
+   "search_index": 1,
+   "read_only": 1,
+   "hidden": 1,
+   "description": "First doctor in the Doctors table (kept in sync automatically)"
+  },
+  {
+   "fieldname": "doctors",
+   "fieldtype": "Table MultiSelect",
+   "label": "Doctors",
+   "options": "KC Visit Doctor",
+   "reqd": 1
   },
   {
    "fieldname": "cb_1",
@@ -157,6 +166,7 @@
   "sales_rep",
   "hospital",
   "doctor",
+  "doctors",
   "cb_1",
   "visit_purpose",
   "visit_outcome",
