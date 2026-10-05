@@ -13,6 +13,9 @@ import Visits from "./views/VisitsView.vue"
 import VisitDetail from "./views/VisitView.vue"
 import Notifications from "./views/NotificationsView.vue"
 import Profile from "./views/ProfileView.vue"
+import Account from "./views/AccountView.vue"
+import ChangePassword from "./views/ChangePasswordView.vue"
+import ResetPassword from "./views/ResetPasswordView.vue"
 
 const router = createRouter({
   history: createWebHistory("/KayanickCRM"),
@@ -28,6 +31,9 @@ const router = createRouter({
     { path: "/notifications", name: "notifications", component: Notifications },
     { path: "/hospital/:name", name: "hospital", component: Profile },
     { path: "/doctor/:name", name: "doctor", component: Profile },
+    { path: "/account", name: "account", component: Account },
+    { path: "/change-password", name: "change-password", component: ChangePassword },
+    { path: "/admin/reset-password", name: "reset-password", component: ResetPassword },
     { path: "/:pathMatch(.*)*", redirect: "/" },
   ],
 })

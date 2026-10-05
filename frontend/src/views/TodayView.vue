@@ -68,7 +68,7 @@ onMounted(() => {
           <Icon name="bell" :size="16" />
           <span v-if="data && data.unread" class="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">{{ data.unread > 9 ? "9+" : data.unread }}</span>
         </router-link>
-        <span class="avatar bg-brand-50 text-brand-700">{{ userInitials }}</span>
+        <router-link to="/account" class="avatar bg-brand-50 text-brand-700" aria-label="Account">{{ userInitials }}</router-link>
       </div>
     </header>
 

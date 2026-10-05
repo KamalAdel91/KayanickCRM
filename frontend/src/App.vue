@@ -5,7 +5,7 @@ import Icon from "./components/Icon.vue"
 import InstallPrompt from "./components/InstallPrompt.vue"
 
 const route = useRoute()
-const showNav = computed(() => !["visit", "case", "notifications"].includes(route.name))
+const showNav = computed(() => !["visit", "case", "notifications", "change-password", "reset-password"].includes(route.name))
 </script>
 
 <template>
