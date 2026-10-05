@@ -4,11 +4,12 @@ import frappe
 from frappe import _
 from frappe.utils import get_fullname, get_time, getdate, now, today
 
-ALLOWED = {"Sales Rep", "Sales Manager", "System Manager"}
 
 
 def _check_role():
-    if frappe.session.user != "Administrator" and not (ALLOWED & set(frappe.get_roles())):
+    from kayanick_crm.settings import is_app_user
+
+    if not is_app_user():
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
@@ -166,13 +167,16 @@ def _apply_used(doc, used_products, used_items, attended_by=None):
     doc.set("used_items", _used_rows(used_items) if used_products == "Yes" else [])
 
 
-ATTENDEE_ROLES = ("Sales Rep", "Sales Manager")
+def _attendee_roles():
+    from kayanick_crm.settings import roles
+
+    return list(roles("attendee_roles")) or ["__none__"]
 
 
 def _attendee(user):
     user = user or frappe.session.user
     if user != frappe.session.user and not frappe.db.exists(
-        "Has Role", {"parent": user, "parenttype": "User", "role": ["in", ATTENDEE_ROLES]}
+        "Has Role", {"parent": user, "parenttype": "User", "role": ["in", _attendee_roles()]}
     ):
         frappe.throw(_("{0} is not a sales user").format(user))
     return user
@@ -182,7 +186,7 @@ def _attendee(user):
 def search_attendees(text=""):
     """Sales reps and managers who can be picked as the one who attended a case."""
     _check_role()
-    users = set(frappe.get_all("Has Role", filters={"parenttype": "User", "role": ["in", ATTENDEE_ROLES]},
+    users = set(frappe.get_all("Has Role", filters={"parenttype": "User", "role": ["in", _attendee_roles()]},
                                pluck="parent"))
     users.add(frappe.session.user)
     text = (text or "").strip()[:60]

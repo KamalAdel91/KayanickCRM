@@ -3,7 +3,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, today
 
-from kayanick_crm.perms import _is_admin
+from kayanick_crm.settings import has_role
 
 MIN_LENGTH = 8
 MAX_LENGTH = 512
@@ -14,9 +14,13 @@ def _require_login():
         frappe.throw(_("Please log in"), frappe.PermissionError)
 
 
+def _can_reset(user=None):
+    return has_role("password_reset_roles", user)
+
+
 def _require_admin():
     _require_login()
-    if not _is_admin(frappe.session.user):
+    if not _can_reset():
         frappe.throw(_("Only admins can reset other users' passwords"), frappe.PermissionError)
 
 
@@ -50,7 +54,7 @@ def get_account():
     _require_login()
     user = frappe.session.user
     full_name = frappe.db.get_value("User", user, "full_name") or user
-    return {"user": user, "full_name": full_name, "is_admin": _is_admin(user)}
+    return {"user": user, "full_name": full_name, "can_reset_passwords": _can_reset(user)}
 
 
 @frappe.whitelist(methods=["POST"])

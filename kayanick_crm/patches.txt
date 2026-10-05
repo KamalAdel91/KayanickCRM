@@ -10,3 +10,4 @@ kayanick_crm.patches.v1.mark_past_cases_attended
 kayanick_crm.patches.v1.set_has_next_visit
 kayanick_crm.patches.v1.set_case_attended_by
 kayanick_crm.patches.doctors_to_table
+kayanick_crm.patches.v1.kc_settings_defaults

@@ -49,12 +49,9 @@ onMounted(async () => {
             <span class="flex-1 font-medium">Change password</span>
             <Icon name="chevron-right" :size="16" class="text-gray-300" />
           </router-link>
-          <router-link v-if="me.is_admin" to="/admin/reset-password" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
+          <router-link v-if="me.can_reset_passwords" to="/admin/reset-password" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
             <Icon name="key" :size="18" class="text-gray-500" />
-            <span class="min-w-0 flex-1">
-              <span class="block font-medium">Reset a user's password</span>
-              <span class="block text-xs text-gray-500">Admins only</span>
-            </span>
+            <span class="flex-1 font-medium">Reset a user's password</span>
             <Icon name="chevron-right" :size="16" class="text-gray-300" />
           </router-link>
         </div>

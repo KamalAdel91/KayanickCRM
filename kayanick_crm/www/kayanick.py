@@ -2,7 +2,6 @@ import frappe
 
 no_cache = 1
 BASE = "/KayanickCRM"
-ALLOWED = {"Sales Rep", "Sales Manager", "System Manager"}
 
 
 def _redirect(location):
@@ -18,7 +17,9 @@ def get_context(context):
         _redirect(BASE + path[len("/kayanick"):])
     if frappe.session.user == "Guest":
         _redirect("/login?redirect-to=" + BASE)
-    if not (ALLOWED & set(frappe.get_roles())):
+    from kayanick_crm.settings import is_app_user
+
+    if not is_app_user():
         frappe.throw("You do not have permission to access Kayanick CRM", frappe.PermissionError)
     context.csrf_token = frappe.sessions.get_csrf_token()
     context.push_relay = frappe.conf.get("push_relay_server_url") or ""

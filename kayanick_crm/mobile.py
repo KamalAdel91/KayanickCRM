@@ -285,10 +285,10 @@ def page_args(a):
 @frappe.whitelist()
 def get_team():
     """Reps whose records the current user can see (for the rep filter). Empty for a plain rep."""
-    from kayanick_crm.perms import visible_reps
+    from kayanick_crm.perms import sees_all, visible_reps
 
     reps = visible_reps()
-    if reps is None:  # admin: everyone who has logged a visit or case
+    if reps is None or sees_all("KC Case") or sees_all("KC Visit"):  # everyone who has logged a visit or case
         reps = set(frappe.get_all("KC Visit", pluck="sales_rep", distinct=True)) | \
             set(frappe.get_all("KC Case", pluck="sales_rep", distinct=True))
     reps = {r for r in reps if r}

@@ -1,0 +1,114 @@
+{
+ "doctype": "DocType",
+ "name": "KC Settings",
+ "module": "KAYANICK CRM",
+ "custom": 0,
+ "issingle": 1,
+ "engine": "InnoDB",
+ "fields": [
+  {
+   "fieldname": "access_section",
+   "fieldtype": "Section Break",
+   "label": "App access"
+  },
+  {
+   "fieldname": "app_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "App Users",
+   "options": "KC Settings Role",
+   "description": "Who can open the mobile app and log visits and cases"
+  },
+  {
+   "fieldname": "admin_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Admins",
+   "options": "KC Settings Role",
+   "description": "See every visit and case, and the whole team. Administrator is always an admin"
+  },
+  {
+   "fieldname": "password_reset_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Can reset passwords",
+   "options": "KC Settings Role",
+   "description": "Can set a new password for other users from the app"
+  },
+  {
+   "fieldname": "team_section",
+   "fieldtype": "Section Break",
+   "label": "Team visibility"
+  },
+  {
+   "fieldname": "manager_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Managers",
+   "options": "KC Settings Role",
+   "description": "See the reps below them in the Sales Person tree and get their notifications"
+  },
+  {
+   "fieldname": "attendee_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "Attendees",
+   "options": "KC Settings Role",
+   "description": "Shown in the \"Who attended?\" list on a case"
+  },
+  {
+   "fieldname": "see_all_section",
+   "fieldtype": "Section Break",
+   "label": "See everything (read only)",
+   "description": "View only. Editing and deleting still follow Role Permissions"
+  },
+  {
+   "fieldname": "case_viewer_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "See all Cases",
+   "options": "KC Settings Role",
+   "description": "Planned, attended and cancelled cases of everyone"
+  },
+  {
+   "fieldname": "visit_viewer_roles",
+   "fieldtype": "Table MultiSelect",
+   "label": "See all Visits",
+   "options": "KC Settings Role",
+   "description": "Visits of everyone"
+  },
+  {
+   "fieldname": "cases_section",
+   "fieldtype": "Section Break",
+   "label": "Cases"
+  },
+  {
+   "fieldname": "planned_cases_open",
+   "fieldtype": "Check",
+   "label": "Planned cases visible to all app users",
+   "default": "1",
+   "description": "If off, a planned case is visible only to its creator and his managers, like attended cases"
+  }
+ ],
+ "field_order": [
+  "access_section",
+  "app_roles",
+  "admin_roles",
+  "password_reset_roles",
+  "team_section",
+  "manager_roles",
+  "attendee_roles",
+  "see_all_section",
+  "case_viewer_roles",
+  "visit_viewer_roles",
+  "cases_section",
+  "planned_cases_open"
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 0,
+   "email": 0,
+   "share": 0
+  }
+ ],
+ "track_changes": 1,
+ "row_format": "Dynamic"
+}
