@@ -2,6 +2,7 @@
 import { ref, computed } from "vue"
 import { useRouter } from "vue-router"
 import { call } from "../api"
+import { setFlash } from "../flash"
 import Icon from "../components/Icon.vue"
 import PickField from "../components/PickField.vue"
 import PickerSheet from "../components/PickerSheet.vue"
@@ -43,7 +44,8 @@ async function save() {
       { user: user.value.name, new_password: next.value, logout_all: logoutAll.value ? 1 : 0 },
       { post: true })
     const who = user.value.full_name || user.value.name
-    router.replace({ name: "account", query: { done: "Password reset for " + who } })
+    setFlash("Password reset for " + who)
+    back()
   } catch (e) {
     error.value = e.message
   } finally {

@@ -151,32 +151,52 @@ def create_doctor(doctor_name, relationship_level=None):
     return {"name": doc.name, "doctor_name": doc.doctor_name, "relationship_level": doc.relationship_level}
 
 
+def latest_per_pair(visits):
+    """Visits sorted newest first -> only the latest one per hospital + doctor (it decides the follow-up)."""
+    seen, out = set(), []
+    for v in visits:
+        key = (v.hospital, v.doctor or "")
+        if key not in seen:
+            seen.add(key)
+            out.append(v)
+    return out
+
+
+def due_followup_names(until):
+    """Visits whose follow-up is due by `until` (latest visit per hospital + doctor), within what the user can see."""
+    rows = frappe.get_list("KC Visit", filters={"visit_date": [">=", add_days(today(), -180)]},
+                           fields=["name", "hospital", "doctor", "next_visit_date"],
+                           order_by="visit_date desc, creation desc", limit_page_length=5000)
+    return [v.name for v in latest_per_pair(rows) if v.next_visit_date and getdate(v.next_visit_date) <= getdate(until)]
+
+
 @frappe.whitelist()
 def get_today():
     user = frappe.session.user
     day = getdate(today())
     horizon = getdate(add_days(today(), 7))
     fields = ["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome",
-              "next_action", "next_visit_date", "order_expected"]
-    visits = frappe.get_list(
+              "next_action", "next_visit_date", "order_expected", "sales_rep"]
+    # follow-ups of everyone this user can see: own for a rep, the team for a manager, all for an admin
+    team = frappe.get_list(
         "KC Visit",
-        filters={"sales_rep": user, "visit_date": [">=", add_days(today(), -180)]},
-        fields=fields, order_by="visit_date desc, creation desc", limit_page_length=500,
+        filters={"visit_date": [">=", add_days(today(), -180)]},
+        fields=fields, order_by="visit_date desc, creation desc", limit_page_length=5000,
     )
-    add_doctor_titles("KC Visit", visits)
+    visits = [v for v in team if v.sales_rep == user]  # "Recent visits" stays personal
+    names = full_names([v.sales_rep for v in team])
 
-    seen, due = set(), []
-    for v in visits:  # newest first: only the latest visit per hospital + doctor decides the follow-up
-        key = (v.hospital, v.doctor or "")
-        if key in seen:
-            continue
-        seen.add(key)
+    due = []
+    for v in latest_per_pair(team):
         if v.next_visit_date and getdate(v.next_visit_date) <= horizon:
+            v["mine"] = v.sales_rep == user
+            v["rep_name"] = names.get(v.sales_rep, v.sales_rep)
             nd = getdate(v.next_visit_date)
             v["is_overdue"] = nd < day
             v["is_today"] = nd == day
             due.append(v)
     due.sort(key=lambda x: getdate(x.next_visit_date))
+    add_doctor_titles("KC Visit", due + visits[:5])
 
     cases = frappe.get_list(
         "KC Case",
@@ -197,7 +217,7 @@ def get_today():
         "month_positive": _count(month + [["visit_outcome", "=", "Positive"]]),
         "month_orders": _count(month + [["order_expected", "=", 1]]),
         "due": sum(1 for v in due if getdate(v.next_visit_date) <= day),
-        "month_cases": len(frappe.get_list("KC Case", filters={"cancelled": 0, "case_date": ["between", [get_first_day(today()), get_last_day(today())]]},
+        "month_cases": len(frappe.get_list("KC Case", filters={"case_date": ["between", [get_first_day(today()), get_last_day(today())]]},
                                            pluck="name", limit_page_length=100000)),
         "cases_due": sum(1 for c in cases if getdate(c.case_date) <= day),
     }
@@ -278,7 +298,7 @@ def list_filters(date_field, args, doctype):
 
 def page_args(a):
     start = max(frappe.utils.cint(a.get("start")), 0)
-    limit = min(max(frappe.utils.cint(a.get("limit")) or PAGE, 1), 200)
+    limit = min(max(frappe.utils.cint(a.get("limit")) or PAGE, 1), 500)
     return start, limit
 
 
@@ -303,6 +323,10 @@ def get_visits(args=None):
     a, filters, or_filters = list_filters("visit_date", args, "KC Visit")
     if a.get("outcome"):
         filters.append(["visit_outcome", "=", a.outcome])
+    if frappe.utils.cint(a.get("order_expected")):
+        filters.append(["order_expected", "=", 1])
+    if frappe.utils.cint(a.get("due")):
+        filters.append(["name", "in", due_followup_names(today()) or [""]])
     start, limit = page_args(a)
     rows = frappe.get_list(
         "KC Visit", fields=["name", "visit_date", "hospital", "doctor", "visit_purpose", "visit_outcome", "order_expected", "sales_rep"],

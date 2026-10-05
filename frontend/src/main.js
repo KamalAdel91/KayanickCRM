@@ -19,6 +19,11 @@ import ResetPassword from "./views/ResetPasswordView.vue"
 
 const router = createRouter({
   history: createWebHistory("/KayanickCRM"),
+  scrollBehavior(to, from, saved) {
+    // lists are kept alive; give them a moment to render before restoring where you were
+    if (saved) return new Promise((resolve) => setTimeout(() => resolve(saved), 200))
+    return { top: 0 }
+  },
   routes: [
     { path: "/", name: "today", component: Today },
     { path: "/visit", name: "visit", component: NewVisit },

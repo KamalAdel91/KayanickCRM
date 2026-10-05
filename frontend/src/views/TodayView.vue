@@ -93,34 +93,34 @@ onMounted(() => {
       </div>
 
       <div class="grid grid-cols-3 gap-2">
-        <div class="card p-3">
+        <router-link :to="{ name: 'visits', query: { period: 'month' } }" class="card p-3">
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-50 text-brand-600"><Icon name="clipboard" :size="15" /></span>
           <p class="mt-2 text-xl font-semibold">{{ data ? data.stats.month_visits : "–" }}</p>
           <p class="text-xs text-gray-500">Visits this month</p>
-        </div>
-        <div class="card p-3">
+        </router-link>
+        <router-link :to="{ name: 'visits', query: { period: 'month', order: 1 } }" class="card p-3">
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-green-600"><Icon name="cart" :size="15" /></span>
           <p class="mt-2 text-xl font-semibold">{{ data ? data.stats.month_orders : "–" }}</p>
           <p class="text-xs text-gray-500">Orders expected</p>
-        </div>
-        <div class="card p-3">
+        </router-link>
+        <router-link :to="{ name: 'visits', query: { due: 1 } }" class="card p-3">
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-600"><Icon name="calendar" :size="15" /></span>
           <p class="mt-2 text-xl font-semibold" :class="data && data.stats.due ? 'text-red-600' : ''">{{ data ? data.stats.due : "–" }}</p>
           <p class="text-xs text-gray-500">Follow-ups due</p>
-        </div>
+        </router-link>
       </div>
 
       <div class="grid grid-cols-2 gap-2">
-        <router-link to="/cases" class="card p-3">
+        <router-link :to="{ name: 'cases', query: { tab: 'all', period: 'month' } }" class="card p-3">
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-50 text-violet-600"><Icon name="cart" :size="15" /></span>
           <p class="mt-2 text-xl font-semibold">{{ data ? data.stats.month_cases : "–" }}</p>
           <p class="text-xs text-gray-500">Cases this month</p>
         </router-link>
-        <div class="card p-3">
+        <router-link :to="{ name: 'cases', query: { tab: 'planned', due: 1 } }" class="card p-3">
           <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-600"><Icon name="calendar" :size="15" /></span>
           <p class="mt-2 text-xl font-semibold" :class="data && data.stats.cases_due ? 'text-red-600' : ''">{{ data ? data.stats.cases_due : "–" }}</p>
           <p class="text-xs text-gray-500">Cases due</p>
-        </div>
+        </router-link>
       </div>
 
       <template v-if="loading && !data">
@@ -136,7 +136,7 @@ onMounted(() => {
               <span class="h-2 w-2 shrink-0 rounded-full" :class="v.is_overdue ? 'bg-red-500' : v.is_today ? 'bg-amber-500' : 'bg-brand-500'"></span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate font-medium" dir="auto">{{ v.hospital }}</span>
-                <span class="block truncate text-xs text-gray-500" dir="auto">{{ [v.doctor_title, v.next_action].filter(Boolean).join(" · ") }}</span>
+                <span class="block truncate text-xs text-gray-500" dir="auto">{{ [v.doctor_title, v.next_action, v.mine ? "" : v.rep_name].filter(Boolean).join(" · ") }}</span>
               </span>
               <span class="badge" :class="v.is_overdue ? 'badge-red' : v.is_today ? 'badge-amber' : 'badge-gray'">
                 {{ v.is_overdue ? "Overdue" : v.is_today ? "Today" : fmt(v.next_visit_date) }}

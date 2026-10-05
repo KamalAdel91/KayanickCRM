@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
 import { fmt, outcomeBadge, levelBadge } from "../ui"
 import Icon from "../components/Icon.vue"
+import RecordNav from "../components/RecordNav.vue"
 import FileList from "../components/FileList.vue"
 
 const route = useRoute()
@@ -42,6 +43,7 @@ onMounted(async () => {
     </header>
 
     <div class="wrap space-y-5 py-4">
+      <RecordNav kind="visits" route="visit-detail" />
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
       <div v-if="!v && !error" class="card h-40 animate-pulse"></div>
 

@@ -1,26 +1,53 @@
 <script setup>
-import { ref, reactive, watch, onMounted } from "vue"
+import { ref, reactive, watch, onActivated } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { fmt, initials, fmtTime } from "../ui"
+import { fmt, initials, fmtTime, ymd } from "../ui"
 import { usePaged } from "../paged"
 import Icon from "../components/Icon.vue"
 import FilterBar from "../components/FilterBar.vue"
+import { registerList } from "../listnav"
+
+defineOptions({ name: "CasesView" })
 
 const route = useRoute()
 const router = useRouter()
 const f = reactive({ text: "", from_date: "", to_date: "", sales_rep: "", attended: route.query.tab === "attended" ? 1 : route.query.tab === "cancelled" ? "cancelled" : route.query.tab === "all" ? "" : 0 })
 const tabs = [{ label: "Planned", value: 0 }, { label: "Attended", value: 1 }, { label: "Cancelled", value: "cancelled" }, { label: "All", value: "" }]
-const { rows, loading, done, error, reload, more } = usePaged("kayanick_crm.case_api.get_cases", () => ({ ...f }))
+const paged = usePaged("kayanick_crm.case_api.get_cases", () => ({ ...f }))
+const { rows, loading, done, error, reload, more } = paged
+registerList("cases", paged)
 let timer = null
 watch(f, () => { clearTimeout(timer); timer = setTimeout(reload, 300) })
-const toast = ref(route.query.saved ? "Case " + route.query.saved + " saved" : "")
+const toast = ref("")
+let first = true
 
-onMounted(() => {
-  reload()
-  if (toast.value) {
-    router.replace({ query: {} })
+// the page is kept alive: first visit loads, coming back refreshes in place (same tab, filters and scroll)
+onActivated(() => {
+  let changed = false
+  const tab = route.query.tab || (route.query.saved ? "planned" : "")  // a new case is planned
+  if (tab) {
+    const want = tab === "attended" ? 1 : tab === "cancelled" ? "cancelled" : tab === "all" ? "" : 0
+    changed = f.attended !== want
+    f.attended = want
+  }
+  // opened from a card on Today: ?period=month (this month) or ?due=1 (planned up to today, overdue included)
+  if (route.query.period || route.query.due) {
+    const d = new Date()
+    const month = route.query.period === "month"
+    const want = { text: "", sales_rep: "",
+      from_date: month ? ymd(new Date(d.getFullYear(), d.getMonth(), 1)) : "",
+      to_date: month ? ymd(new Date(d.getFullYear(), d.getMonth() + 1, 0)) : ymd(d) }
+    changed = Object.keys(want).some((k) => f[k] !== want[k]) || changed
+    Object.assign(f, want)
+  }
+  if (route.query.saved) {
+    toast.value = "Case " + route.query.saved + " saved"
     setTimeout(() => (toast.value = ""), 3500)
   }
+  if (route.query.tab || route.query.saved || route.query.period || route.query.due) router.replace({ query: {} })
+  if (changed) first = false  // the filter watcher reloads
+  else if (first) { first = false; reload() }
+  else paged.refresh()
 })
 </script>
 

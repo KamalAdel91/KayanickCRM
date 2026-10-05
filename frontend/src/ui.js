@@ -40,3 +40,8 @@ export function usedItemsError(used, items) {
 export function usedItemsText(items) {
   return items.map((r) => `${r.item_name} × ${r.qty}${r.uom ? " " + r.uom : ""}`).join("\n")
 }
+
+// local date as YYYY-MM-DD
+export function ymd(d) {
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
+}

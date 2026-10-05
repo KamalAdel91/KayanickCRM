@@ -5,13 +5,17 @@ import Icon from "./components/Icon.vue"
 import InstallPrompt from "./components/InstallPrompt.vue"
 
 const route = useRoute()
+// detail pages remount for each record (prev / next buttons); lists keep their state when you come back
+const viewKey = computed(() => (["case-detail", "visit-detail"].includes(route.name) ? route.fullPath : route.name))
 const showNav = computed(() => !["visit", "case", "notifications", "change-password", "reset-password"].includes(route.name))
 </script>
 
 <template>
   <div class="min-h-screen" :class="showNav ? 'pb-20' : ''">
     <router-view v-slot="{ Component }">
-      <transition name="page" mode="out-in"><component :is="Component" /></transition>
+      <transition name="page" mode="out-in">
+        <keep-alive :include="['CasesView', 'VisitsView']"><component :is="Component" :key="viewKey" /></keep-alive>
+      </transition>
     </router-view>
     <InstallPrompt v-if="showNav" />
     <nav v-if="showNav" class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">

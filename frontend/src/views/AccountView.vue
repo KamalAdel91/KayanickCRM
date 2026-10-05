@@ -1,21 +1,23 @@
 <script setup>
 import { ref, onMounted } from "vue"
-import { useRoute, useRouter } from "vue-router"
+import { useRouter } from "vue-router"
 import { call } from "../api"
+import { takeFlash } from "../flash"
 import { initials } from "../ui"
 import Icon from "../components/Icon.vue"
 
-const route = useRoute()
 const router = useRouter()
 const me = ref(null)
 const error = ref("")
-const toast = ref(route.query.done || "")
+const toast = ref(takeFlash())
+
+function back() {
+  if (window.history.length > 1) router.back()
+  else router.push("/")
+}
 
 onMounted(async () => {
-  if (toast.value) {
-    router.replace({ query: {} })
-    setTimeout(() => (toast.value = ""), 3000)
-  }
+  if (toast.value) setTimeout(() => (toast.value = ""), 3000)
   try { me.value = await call("kayanick_crm.account.get_account") }
   catch (e) { error.value = e.message }
 })
@@ -25,6 +27,7 @@ onMounted(async () => {
   <div>
     <header class="page-head">
       <div class="page-head-inner">
+        <button type="button" class="btn btn-subtle w-9 px-0" aria-label="Back" @click="back"><Icon name="chevron-left" :size="18" /></button>
         <h1 class="page-title flex-1">Account</h1>
       </div>
     </header>

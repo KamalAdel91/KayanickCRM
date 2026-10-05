@@ -25,5 +25,17 @@ export function usePaged(method, argsFn, size = 50) {
       if (t === token) loading.value = false
     }
   }
-  return { rows, loading, done, error, reload: () => load(true), more: () => load(false) }
+  // re-fetches what is already shown (same length) without clearing the list, so scroll position stays
+  async function refresh() {
+    if (!rows.value.length) return load(true)
+    const t = ++token
+    const n = Math.max(rows.value.length, size)
+    try {
+      const r = await call(method, { args: JSON.stringify({ ...argsFn(), start: 0, limit: n }) })
+      if (t !== token) return
+      rows.value = r
+      done.value = r.length < n
+    } catch (e) {}
+  }
+  return { rows, loading, done, error, reload: () => load(true), more: () => load(false), refresh }
 }

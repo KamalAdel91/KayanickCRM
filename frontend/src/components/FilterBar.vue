@@ -10,16 +10,17 @@ const open = ref(false)
 const team = ref([])
 
 const statusOptions = computed(() => (props.kind === "visits"
-  ? [{ label: "Positive", key: "outcome", value: "Positive" }, { label: "Negative", key: "outcome", value: "Negative" }]
+  ? [{ label: "Positive", key: "outcome", value: "Positive" }, { label: "Negative", key: "outcome", value: "Negative" },
+     { label: "Order expected", key: "order_expected", value: 1 }, { label: "Follow-up due", key: "due", value: 1 }]
   : []))  // cases: Planned / Attended are tabs on the Cases page
-const active = computed(() => ["from_date", "to_date", "sales_rep", "outcome"]
+const active = computed(() => ["from_date", "to_date", "sales_rep", "outcome", "order_expected", "due"]
   .filter((k) => f.value[k] !== "" && f.value[k] !== undefined && f.value[k] !== null).length)
 
 function toggleStatus(o) {
   f.value[o.key] = f.value[o.key] === o.value ? "" : o.value
 }
 function clear() {
-  Object.assign(f.value, { from_date: "", to_date: "", sales_rep: "", outcome: "" })
+  Object.assign(f.value, { from_date: "", to_date: "", sales_rep: "", outcome: "", order_expected: "", due: "" })
 }
 onMounted(async () => {
   try { team.value = await call("kayanick_crm.mobile.get_team") } catch (e) {}

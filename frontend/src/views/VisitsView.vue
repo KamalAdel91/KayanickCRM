@@ -1,15 +1,47 @@
 <script setup>
-import { reactive, watch, onMounted } from "vue"
-import { fmt, initials, outcomeBadge } from "../ui"
+import { reactive, watch, onActivated } from "vue"
+import { useRoute, useRouter } from "vue-router"
+import { fmt, initials, outcomeBadge, ymd } from "../ui"
 import { usePaged } from "../paged"
 import Icon from "../components/Icon.vue"
 import FilterBar from "../components/FilterBar.vue"
+import { registerList } from "../listnav"
 
-const f = reactive({ text: "", from_date: "", to_date: "", sales_rep: "", outcome: "" })
-const { rows, loading, done, error, reload, more } = usePaged("kayanick_crm.mobile.get_visits", () => ({ ...f }))
+defineOptions({ name: "VisitsView" })
+const route = useRoute()
+const router = useRouter()
+
+const f = reactive({ text: "", from_date: "", to_date: "", sales_rep: "", outcome: "", order_expected: "", due: "" })
+const paged = usePaged("kayanick_crm.mobile.get_visits", () => ({ ...f }))
+const { rows, loading, done, error, reload, more } = paged
+registerList("visits", paged)
 let timer = null
 watch(f, () => { clearTimeout(timer); timer = setTimeout(reload, 300) })
-onMounted(reload)
+let first = true
+
+// opened from a card on Today: ?period=month, ?order=1 (orders expected), ?due=1 (follow-ups due)
+function preset(q) {
+  if (!q.period && !q.order && !q.due) return null
+  const d = new Date()
+  const month = q.period === "month"
+  return { text: "", sales_rep: "", outcome: "",
+    from_date: month ? ymd(new Date(d.getFullYear(), d.getMonth(), 1)) : "",
+    to_date: month ? ymd(new Date(d.getFullYear(), d.getMonth() + 1, 0)) : "",
+    order_expected: q.order ? 1 : "", due: q.due ? 1 : "" }
+}
+// the page is kept alive: first visit loads, coming back refreshes in place (same filters and scroll)
+onActivated(() => {
+  let changed = false
+  const want = preset(route.query)
+  if (want) {
+    changed = Object.keys(want).some((k) => f[k] !== want[k])
+    Object.assign(f, want)
+    router.replace({ query: {} })
+  }
+  if (changed) first = false  // the filter watcher reloads
+  else if (first) { first = false; reload() }
+  else paged.refresh()
+})
 </script>
 
 <template>

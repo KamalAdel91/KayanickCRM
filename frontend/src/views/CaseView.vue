@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
 import { fmt, fmtTime, usedItemsError, localToday } from "../ui"
 import Icon from "../components/Icon.vue"
+import RecordNav from "../components/RecordNav.vue"
 import FileList from "../components/FileList.vue"
 import UsedItems from "../components/UsedItems.vue"
 import AttendeePick from "../components/AttendeePick.vue"
@@ -134,6 +135,7 @@ onMounted(load)
     </header>
 
     <div class="wrap space-y-5 py-4">
+      <RecordNav kind="cases" route="case-detail" />
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
       <div v-if="!c && !error" class="card h-40 animate-pulse"></div>
 

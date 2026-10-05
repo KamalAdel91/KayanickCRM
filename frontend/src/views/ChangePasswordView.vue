@@ -2,6 +2,7 @@
 import { ref, computed } from "vue"
 import { useRouter } from "vue-router"
 import { call } from "../api"
+import { setFlash } from "../flash"
 import Icon from "../components/Icon.vue"
 import PasswordField from "../components/PasswordField.vue"
 
@@ -34,7 +35,8 @@ async function save() {
     await call("kayanick_crm.account.change_password",
       { old_password: current.value, new_password: next.value, logout_others: logoutOthers.value ? 1 : 0 },
       { post: true })
-    router.replace({ name: "account", query: { done: "Password changed" } })
+    setFlash("Password changed")
+    back()
   } catch (e) {
     error.value = e.message
   } finally {
