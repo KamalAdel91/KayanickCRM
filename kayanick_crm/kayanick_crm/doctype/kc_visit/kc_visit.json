@@ -34,6 +34,16 @@
    "search_index": 1
   },
   {
+   "fieldname": "sales_person",
+   "fieldtype": "Link",
+   "label": "Sales Person",
+   "options": "Sales Person",
+   "read_only": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "description": "Set automatically from the rep (or whoever attended the case). Team visibility follows User Permissions on Sales Person."
+  },
+  {
    "fieldname": "hospital",
    "fieldtype": "Link",
    "label": "Hospital",
@@ -164,6 +174,7 @@
   "naming_series",
   "visit_date",
   "sales_rep",
+  "sales_person",
   "hospital",
   "doctor",
   "doctors",
@@ -215,6 +226,13 @@
    "print": 1,
    "write": 1,
    "create": 1
+  },
+  {
+   "role": "KC Viewer",
+   "read": 1,
+   "report": 1,
+   "print": 1,
+   "export": 1
   }
  ],
  "sort_field": "modified",

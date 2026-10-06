@@ -62,9 +62,7 @@ def test_push():
 
 
 def managers_of(user):
-    """Managers (KC Settings > Managers roles) above the user in the Sales Person tree."""
-    from kayanick_crm.settings import has_role
-
+    """Everyone linked to a Sales Person above the user in the Sales Person tree."""
     employees = frappe.get_all("Employee", filters={"user_id": user}, pluck="name")
     if not employees:
         return set()
@@ -74,7 +72,7 @@ def managers_of(user):
                                                         "enabled": 1, "employee": ["is", "set"]}, pluck="employee")
         if above:
             users = frappe.get_all("Employee", filters={"name": ["in", above]}, pluck="user_id")
-            out |= {u for u in users if u and has_role("manager_roles", u)}
+            out |= {u for u in users if u}
     out.discard(user)
     return out
 

@@ -108,7 +108,7 @@ def _count(filters):
 def get_options():
     out = {k: frappe.get_list(dt, pluck="name", order_by="creation asc", limit_page_length=500)
            for k, dt in LIST_DTS.items()}
-    # admins and sales managers may add hospitals/doctors (same rule as the Desk permissions)
+    # Create permission on KC Hospital / KC Doctor (Role Permission Manager)
     out["can_add_hospital"] = bool(frappe.has_permission("KC Hospital", "create"))
     out["can_add_doctor"] = bool(frappe.has_permission("KC Doctor", "create"))
     return out
@@ -200,7 +200,7 @@ def get_today():
 
     cases = frappe.get_list(
         "KC Case",
-        filters={"attended": 0, "cancelled": 0, "case_date": ["<=", horizon]},  # planned cases are open to everyone
+        filters={"attended": 0, "cancelled": 0, "case_date": ["<=", horizon]},  # planned cases this user can see
         fields=["name", "hospital", "doctor", "case_date", "case_time"], order_by="case_date asc, case_time asc", limit_page_length=100,
     )
     from kayanick_crm.case_api import decorate
@@ -305,12 +305,9 @@ def page_args(a):
 @frappe.whitelist()
 def get_team():
     """Reps whose records the current user can see (for the rep filter). Empty for a plain rep."""
-    from kayanick_crm.perms import sees_all, visible_reps
-
-    reps = visible_reps()
-    if reps is None or sees_all("KC Case") or sees_all("KC Visit"):  # everyone who has logged a visit or case
-        reps = set(frappe.get_all("KC Visit", pluck="sales_rep", distinct=True)) | \
-            set(frappe.get_all("KC Case", pluck="sales_rep", distinct=True))
+    reps = set()
+    for dt in ("KC Visit", "KC Case"):  # get_list applies the user's permissions
+        reps |= set(frappe.get_list(dt, pluck="sales_rep", distinct=True, limit_page_length=0))
     reps = {r for r in reps if r}
     if len(reps) <= 1:
         return []
@@ -360,7 +357,7 @@ def get_visit(name):
 
 @frappe.whitelist(methods=["POST"])
 def delete_record(doctype, name):
-    # only managers/admins have delete permission; frappe.delete_doc checks it
+    # frappe.delete_doc checks the Delete permission (Role Permission Manager)
     if doctype not in ("KC Visit", "KC Case"):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     frappe.delete_doc(doctype, name)

@@ -24,6 +24,10 @@ class KCCase(Document):
             self.attended_by = None
         elif not self.attended_by:
             self.attended_by = frappe.session.user
+        # a planned case belongs to its rep; once attended, to whoever attended it
+        from kayanick_crm.perms import sales_person_of
+
+        self.sales_person = sales_person_of(self.attended_by or self.sales_rep)
         if self.used_products != "Yes":
             self.used_items = []
             return

@@ -3,7 +3,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, today
 
-from kayanick_crm.settings import has_role
+from kayanick_crm.perms import can_reset_passwords
 
 MIN_LENGTH = 8
 MAX_LENGTH = 512
@@ -15,7 +15,7 @@ def _require_login():
 
 
 def _can_reset(user=None):
-    return has_role("password_reset_roles", user)
+    return can_reset_passwords(user)
 
 
 def _require_admin():

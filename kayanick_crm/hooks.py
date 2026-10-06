@@ -259,18 +259,8 @@ required_apps = ["erpnext"]
 # ignore_translatable_strings_from = []
 
 
-permission_query_conditions = {
-    "KC Visit": "kayanick_crm.perms.visit_query",
-    "KC Case": "kayanick_crm.perms.case_query",
-}
-
-has_permission = {
-    "KC Visit": "kayanick_crm.perms.visit_has_permission",
-    "KC Case": "kayanick_crm.perms.case_has_permission",
-}
-
 fixtures = [
-    {"dt": "Role", "filters": [["name", "=", "Sales Rep"]]},
+    {"dt": "Role", "filters": [["name", "in", ["Sales Rep", "KC Viewer"]]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Dashboard Chart", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Workspace Sidebar", "filters": [["module", "=", "KAYANICK CRM"]]},

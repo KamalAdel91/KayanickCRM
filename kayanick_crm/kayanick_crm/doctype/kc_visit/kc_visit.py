@@ -11,7 +11,10 @@ class KCVisit(Document):
     def validate(self):
         from kayanick_crm.mobile import sync_doctors
 
+        from kayanick_crm.perms import sales_person_of
+
         sync_doctors(self)
+        self.sales_person = sales_person_of(self.sales_rep)
         if self.has_next_visit != "Yes":
             self.next_visit_date = None
         if self.next_visit_date and self.visit_date and getdate(self.next_visit_date) < getdate(self.visit_date):

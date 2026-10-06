@@ -17,7 +17,7 @@ def get_context(context):
         _redirect(BASE + path[len("/kayanick"):])
     if frappe.session.user == "Guest":
         _redirect("/login?redirect-to=" + BASE)
-    from kayanick_crm.settings import is_app_user
+    from kayanick_crm.perms import is_app_user
 
     if not is_app_user():
         frappe.throw("You do not have permission to access Kayanick CRM", frappe.PermissionError)

@@ -2,8 +2,6 @@ import frappe
 from frappe import _
 from frappe.utils import get_first_day, today
 
-from kayanick_crm.perms import visible_reps
-
 
 def execute(filters=None):
     columns = [
@@ -16,11 +14,11 @@ def execute(filters=None):
         {"label": _("Cases"), "fieldname": "cases", "fieldtype": "Int", "width": 90},
         {"label": _("Last Visit"), "fieldname": "last_visit", "fieldtype": "Date", "width": 110},
     ]
-    reps = set(frappe.get_all("Has Role", filters={"role": "Sales Rep", "parenttype": "User"}, pluck="parent"))
-    reps = {u for u in reps if frappe.db.get_value("User", u, "enabled")}
-    allowed = visible_reps()
-    if allowed is not None:
-        reps &= allowed
+    # reps whose visits/cases this user can see (get_list applies his User Permissions)
+    reps = set()
+    for dt in ("KC Visit", "KC Case"):
+        reps |= set(frappe.get_list(dt, pluck="sales_rep", distinct=True, limit_page_length=0))
+    reps = {u for u in reps if u and frappe.db.get_value("User", u, "enabled")}
     month = get_first_day(today())
     data = []
     for u in sorted(reps):
