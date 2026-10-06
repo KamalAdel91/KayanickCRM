@@ -13,15 +13,15 @@ required_apps = ["erpnext"]
 # required_apps = []
 
 # Each item in the list will be shown as an app in the apps page
-# add_to_apps_screen = [
-# 	{
-# 		"name": "kayanick_crm",
-# 		"logo": "/assets/kayanick_crm/logo.png",
-# 		"title": "Kayanick Crm",
-# 		"route": "/kayanick_crm",
-# 		"has_permission": "kayanick_crm.api.permission.has_app_permission"
-# 	}
-# ]
+add_to_apps_screen = [
+    {
+        "name": "kayanick_crm",
+        "logo": "/assets/kayanick_crm/frontend/icon-192.png",
+        "title": "Kayanick CRM",
+        "route": "/desk/kayanick-crm",
+        "has_permission": "kayanick_crm.perms.is_app_user",
+    }
+]
 
 # Includes in <head>
 # ------------------
@@ -279,7 +279,7 @@ website_route_rules = [
     {"from_route": "/kayanick/<path:app_path>", "to_route": "kayanick"},
 ]
 
-after_migrate = ["kayanick_crm.setup.hide_extra_desktop_icons"]
+after_migrate = ["kayanick_crm.setup.hide_extra_desktop_icons", "kayanick_crm.setup.remove_converted_sidebars"]
 
 doc_events = {
     "KC Visit": {"after_insert": "kayanick_crm.notify.visit_created"},
