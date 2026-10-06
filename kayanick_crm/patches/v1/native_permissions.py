@@ -58,8 +58,8 @@ def _backfill():
     for v in frappe.get_all("KC Visit", fields=["name", "sales_rep"], limit_page_length=0):
         frappe.db.set_value("KC Visit", v.name, "sales_person", sp(v.sales_rep), update_modified=False)
     for c in frappe.get_all("KC Case", fields=["name", "sales_rep", "attended", "attended_by"], limit_page_length=0):
-        owner = c.attended_by if c.attended and c.attended_by else c.sales_rep
-        frappe.db.set_value("KC Case", c.name, "sales_person", sp(owner), update_modified=False)
+        value = sp(c.attended_by or c.sales_rep) if c.attended else None  # planned cases stay open to everyone
+        frappe.db.set_value("KC Case", c.name, "sales_person", value, update_modified=False)
 
 
 def _user_permissions(skip):

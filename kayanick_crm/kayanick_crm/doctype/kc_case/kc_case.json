@@ -133,7 +133,7 @@
    "read_only": 1,
    "in_standard_filter": 1,
    "search_index": 1,
-   "description": "Set automatically from the rep (or whoever attended the case). Team visibility follows User Permissions on Sales Person."
+   "description": "Empty while the case is planned (visible to everyone); set from whoever attended it once attended. Team visibility follows User Permissions on Sales Person."
   },
   {
    "fieldname": "sb_products",

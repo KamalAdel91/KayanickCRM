@@ -24,10 +24,12 @@ class KCCase(Document):
             self.attended_by = None
         elif not self.attended_by:
             self.attended_by = frappe.session.user
-        # a planned case belongs to its rep; once attended, to whoever attended it
+        # a planned (or cancelled) case has no Sales Person, so every user sees it (ERPNext shows records with an
+        # empty link to everyone while "Apply Strict User Permissions" is off); once attended it belongs to
+        # whoever attended it and his managers
         from kayanick_crm.perms import sales_person_of
 
-        self.sales_person = sales_person_of(self.attended_by or self.sales_rep)
+        self.sales_person = sales_person_of(self.attended_by) if self.attended else None
         if self.used_products != "Yes":
             self.used_items = []
             return
