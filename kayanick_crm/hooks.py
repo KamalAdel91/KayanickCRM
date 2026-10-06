@@ -18,7 +18,7 @@ add_to_apps_screen = [
         "name": "kayanick_crm",
         "logo": "/assets/kayanick_crm/frontend/icon-192.png",
         "title": "Kayanick CRM",
-        "route": "/desk/kayanick-crm",
+        "route": "/desk/kayanick-sales",
         "has_permission": "kayanick_crm.perms.is_app_user",
     }
 ]
@@ -279,7 +279,8 @@ website_route_rules = [
     {"from_route": "/kayanick/<path:app_path>", "to_route": "kayanick"},
 ]
 
-after_migrate = ["kayanick_crm.setup.hide_extra_desktop_icons", "kayanick_crm.setup.remove_converted_sidebars"]
+before_migrate = ["kayanick_crm.setup.fix_module_def"]
+after_migrate = ["kayanick_crm.setup.fix_module_def", "kayanick_crm.setup.hide_extra_desktop_icons", "kayanick_crm.setup.remove_converted_sidebars"]
 
 doc_events = {
     "KC Visit": {"after_insert": "kayanick_crm.notify.visit_created"},
