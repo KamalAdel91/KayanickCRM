@@ -291,3 +291,9 @@ scheduler_events = {
 }
 
 page_renderer = ["kayanick_crm.sw.ServiceWorkerRenderer", "kayanick_crm.branding.BrandingRenderer"]
+
+doc_events = {
+    "KC Case": {
+        "validate": "kayanick_crm.stock_items.validate_stock_items",
+    },
+}
