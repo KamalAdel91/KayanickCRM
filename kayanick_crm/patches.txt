@@ -14,3 +14,4 @@ kayanick_crm.patches.v1.refresh_visit_dates
 kayanick_crm.patches.v1.native_permissions
 kayanick_crm.patches.v1.planned_cases_open
 kayanick_crm.patches.v2.employee_model
+kayanick_crm.patches.v2.drop_stale_module_blocks
