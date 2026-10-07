@@ -7,14 +7,13 @@ Served from the site root:
 Falls back to the bundled icons when no company has a logo."""
 import io
 import json
-import os
 
 import frappe
 from frappe.website.page_renderers.base_renderer import BaseRenderer
 from werkzeug.wrappers import Response
 
 ICON_SIZES = {"kayanick-icon-192.png": 192, "kayanick-icon-512.png": 512}
-FALLBACK = "public/frontend/icon-{0}.png"
+FALLBACK = "icon-{0}.png"  # in public/frontend
 
 
 def company_logo():
@@ -50,7 +49,8 @@ def _icon(size):
 
     logo = _logo_image()
     if logo is None:
-        with open(frappe.get_app_path("kayanick_crm", FALLBACK.format(192 if size <= 192 else 512)), "rb") as f:
+        # "public" as its own part: Frappe would otherwise turn icon-192 into icon_192
+        with open(frappe.get_app_path("kayanick_crm", "public", "frontend", FALLBACK.format(192 if size <= 192 else 512)), "rb") as f:
             return f.read()
     logo.thumbnail((int(size * 0.72), int(size * 0.72)), Image.LANCZOS)  # keep inside the maskable safe zone
     canvas = Image.new("RGBA", (size, size), (255, 255, 255, 255))

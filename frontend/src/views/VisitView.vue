@@ -58,9 +58,15 @@ onMounted(async () => {
             <div class="flex-1"><p class="text-xs text-gray-500">Date</p><p>{{ fmt(v.visit_date) }}</p></div>
             <div class="flex-1"><p class="text-xs text-gray-500">Purpose</p><p>{{ v.visit_purpose || "—" }}</p></div>
           </div>
+          <div v-if="v.doctors.length" class="space-y-1.5 px-4 py-3">
+            <p class="text-xs text-gray-500">Relationship</p>
+            <div v-for="d in v.doctors" :key="d.doctor" class="flex items-center justify-between gap-2 text-sm">
+              <span class="min-w-0 truncate" dir="auto">{{ d.doctor_name }}</span>
+              <span v-if="d.relationship_level" class="badge shrink-0" :class="levelBadge(d.relationship_level)">{{ d.relationship_level }}</span>
+            </div>
+          </div>
           <div class="flex flex-wrap gap-2 px-4 py-3">
             <span v-if="v.visit_outcome" class="badge" :class="outcomeBadge(v.visit_outcome)">{{ v.visit_outcome }}</span>
-            <span v-if="v.relationship_level" class="badge" :class="levelBadge(v.relationship_level)">{{ v.relationship_level }}</span>
             <span v-if="v.order_expected" class="badge badge-blue"><Icon name="cart" :size="11" />Order expected</span>
             <span v-for="p in v.products" :key="p" class="badge badge-gray">{{ p }}</span>
           </div>

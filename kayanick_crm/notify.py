@@ -61,18 +61,24 @@ def test_push():
     return _push(frappe.session.user, "Push is working", APP_ROUTE + "/notifications", title="🔔 Test notification")
 
 
-def managers_of(user):
-    """Everyone linked to a Sales Person above the user in the Sales Person tree."""
-    employees = frappe.get_all("Employee", filters={"user_id": user}, pluck="name")
-    if not employees:
+def managers_of_employee(employee):
+    """Users of everyone above this employee in Reports To (his manager, the manager's manager, ...)."""
+    if not employee:
         return set()
-    out = set()
-    for node in frappe.get_all("Sales Person", filters={"employee": ["in", employees]}, fields=["lft", "rgt"]):
-        above = frappe.get_all("Sales Person", filters={"lft": ["<", node.lft], "rgt": [">", node.rgt],
-                                                        "enabled": 1, "employee": ["is", "set"]}, pluck="employee")
-        if above:
-            users = frappe.get_all("Employee", filters={"name": ["in", above]}, pluck="user_id")
-            out |= {u for u in users if u}
+    node = frappe.db.get_value("Employee", employee, ["lft", "rgt", "user_id"], as_dict=True)
+    if not node or not node.lft:
+        return set()
+    users = frappe.get_all("Employee", filters={"lft": ["<", node.lft], "rgt": [">", node.rgt], "status": "Active",
+                                                "user_id": ["is", "set"]}, pluck="user_id")
+    out = {u for u in users if u}
+    out.discard(node.user_id)
+    return out
+
+
+def managers_of(user):
+    from kayanick_crm.perms import employee_of
+
+    out = managers_of_employee(employee_of(user))
     out.discard(user)
     return out
 
@@ -89,17 +95,18 @@ def case_created(doc, method=None):
 
 
 def _visit_to_managers(name):
+    from kayanick_crm.mobile import doctors_text
+    from kayanick_crm.perms import user_of
+
     v = frappe.get_doc("KC Visit", name)
     what = "an order expected" if v.order_expected else "a positive visit"
-    rep = get_fullname(v.sales_rep)
-    from kayanick_crm.mobile import doctors_text
-
+    rep = v.employee_name or get_fullname(v.owner)
     doctor = doctors_text(v)
     msg = "{0} logged {1} at {2}".format(rep, what, v.hospital)
     title = "🛒 Order expected" if v.order_expected else "🟢 Positive visit"
     body = " · ".join(x for x in (rep, v.hospital, doctor) if x)
-    for m in managers_of(v.sales_rep):
-        notify(m, msg, "KC Visit", v.name, v.sales_rep, title=title, body=body)
+    for m in managers_of_employee(v.employee):
+        notify(m, msg, "KC Visit", v.name, user_of(v.employee) or v.owner, title=title, body=body)
 
 
 def _hm(t):
@@ -112,69 +119,79 @@ def _hm(t):
 
 
 def _case_to_managers(name):
-    c = frappe.get_doc("KC Case", name)
-    at = (" " + _hm(c.case_time)) if c.case_time else ""
-    when = "" if c.attended else " for " + getdate(c.case_date).strftime("%d %b") + at
     from kayanick_crm.mobile import doctors_text
 
+    c = frappe.get_doc("KC Case", name)
+    attended = c.status == "Attended"
+    at = (" " + _hm(c.case_time)) if c.case_time else ""
+    when = "" if attended else " for " + getdate(c.case_date).strftime("%d %b") + at
     doctor = doctors_text(c)
-    rep = get_fullname(c.sales_rep)
+    rep = get_fullname(c.owner)
     msg = "{0} added a case{1}: {2}{3}".format(rep, when, c.hospital, " / " + doctor if doctor else "")
-    title = "📅 Planned case · " + getdate(c.case_date).strftime("%d %b") + at if not c.attended else "🩺 New case"
+    title = "🩺 New case" if attended else "📅 Planned case · " + getdate(c.case_date).strftime("%d %b") + at
     body = " · ".join(x for x in (rep, c.hospital, doctor) if x)
-    for m in managers_of(c.sales_rep):
-        notify(m, msg, "KC Case", c.name, c.sales_rep, title=title, body=body)
+    for m in managers_of(c.owner):
+        notify(m, msg, "KC Case", c.name, c.owner, title=title, body=body)
 
 
 def _case_cancelled_to_managers(name):
     from kayanick_crm.mobile import doctors_text
 
     c = frappe.get_doc("KC Case", name)
-    by = get_fullname(c.cancelled_by)
+    rows = [r for r in c.log if r.action == "Cancelled"]
+    if not rows:
+        return
+    row = rows[-1]
+    by = get_fullname(row.done_by)
     doctor = doctors_text(c)
     msg = "{0} cancelled a case: {1}{2}".format(by, c.hospital, " / " + doctor if doctor else "")
     title = "❌ Case cancelled · " + getdate(c.case_date).strftime("%d %b")
-    body = " · ".join(x for x in (by, c.hospital, c.cancel_reason) if x)
-    for m in (managers_of(c.sales_rep) | {c.sales_rep}) - {c.cancelled_by}:
-        notify(m, msg, "KC Case", c.name, c.cancelled_by, title=title, body=body)
+    body = " · ".join(x for x in (by, c.hospital, row.reason) if x)
+    for m in (managers_of(c.owner) | {c.owner}) - {row.done_by}:
+        notify(m, msg, "KC Case", c.name, row.done_by, title=title, body=body)
 
 
 # ---- daily reminder (scheduler) ----
 
 def morning_reminder():
+    """Each rep: his follow-ups due (same rule as the Today screen) and the planned cases he created that are
+    due today or overdue."""
+    from kayanick_crm.mobile import open_follow_ups, recent_visits
+
     day = getdate(today())
-    reps = set(frappe.get_all("KC Visit", filters={"next_visit_date": ["<=", day]}, pluck="sales_rep", distinct=True))
-    reps |= set(frappe.get_all("KC Case", filters={"attended": 0, "cancelled": 0, "case_date": ["<=", day]}, pluck="sales_rep", distinct=True))
-    for rep in reps:
-        if not rep or not frappe.db.get_value("User", rep, "enabled"):
+    by_employee = {}
+    for v in recent_visits(["name", "hospital", "next_visit_date", "employee"], as_user=False):
+        if v.employee:
+            by_employee.setdefault(v.employee, []).append(v)
+    users = dict(frappe.get_all("Employee", filters={"name": ["in", list(by_employee) or [""]]},
+                                fields=["name", "user_id"], as_list=True))
+    follow_ups = {}
+    for employee, visits in by_employee.items():
+        n = sum(1 for v, _d in open_follow_ups(visits) if v.next_visit_date and getdate(v.next_visit_date) <= day)
+        if n and users.get(employee):
+            follow_ups[users[employee]] = follow_ups.get(users[employee], 0) + n
+    today_cases, overdue_cases = {}, {}
+    for c in frappe.get_all("KC Case", filters={"status": "Planned", "case_date": ["<=", day]},
+                            fields=["owner", "case_date"], limit_page_length=0):
+        bucket = today_cases if getdate(c.case_date) == day else overdue_cases
+        bucket[c.owner] = bucket.get(c.owner, 0) + 1
+
+    for rep in set(follow_ups) | set(today_cases) | set(overdue_cases):
+        if not rep or rep in ("Administrator", "Guest") or not frappe.db.get_value("User", rep, "enabled"):
             continue
-        follow_ups = _due_follow_ups(rep, day)
-        today_cases = frappe.db.count("KC Case", {"sales_rep": rep, "attended": 0, "cancelled": 0, "case_date": day})
-        overdue_cases = frappe.db.count("KC Case", {"sales_rep": rep, "attended": 0, "cancelled": 0, "case_date": ["<", day]})
         parts = []
-        if follow_ups:
-            parts.append("{0} follow-up{1}".format(follow_ups, "" if follow_ups == 1 else "s"))
-        if today_cases:
-            parts.append("{0} case{1} today".format(today_cases, "" if today_cases == 1 else "s"))
-        if overdue_cases:
-            parts.append("{0} overdue case{1}".format(overdue_cases, "" if overdue_cases == 1 else "s"))
+        n = follow_ups.get(rep)
+        if n:
+            parts.append("{0} follow-up{1}".format(n, "" if n == 1 else "s"))
+        n = today_cases.get(rep)
+        if n:
+            parts.append("{0} case{1} today".format(n, "" if n == 1 else "s"))
+        n = overdue_cases.get(rep)
+        if n:
+            parts.append("{0} overdue case{1}".format(n, "" if n == 1 else "s"))
         if parts:
             notify(rep, REMINDER_PREFIX + " " + ", ".join(parts) + ".",
                    title="☀️ Good morning", body="Today: " + ", ".join(parts))
-
-
-def _due_follow_ups(rep, day):
-    # latest visit per hospital + doctor decides the follow-up (same rule as the Today screen)
-    seen, due = set(), 0
-    for v in frappe.get_all("KC Visit", filters={"sales_rep": rep}, fields=["hospital", "doctor", "next_visit_date"],
-                            order_by="visit_date desc, creation desc", limit_page_length=500):
-        key = (v.hospital, v.doctor or "")
-        if key in seen:
-            continue
-        seen.add(key)
-        if v.next_visit_date and getdate(v.next_visit_date) <= day:
-            due += 1
-    return due
 
 
 # ---- mobile API ----

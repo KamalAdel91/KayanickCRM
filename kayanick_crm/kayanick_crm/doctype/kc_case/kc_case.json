@@ -25,24 +25,6 @@
    "search_index": 1
   },
   {
-   "fieldname": "doctor",
-   "fieldtype": "Link",
-   "label": "Primary Doctor",
-   "options": "KC Doctor",
-   "reqd": 0,
-   "search_index": 1,
-   "read_only": 1,
-   "hidden": 1,
-   "description": "First doctor in the Doctors table (kept in sync automatically)"
-  },
-  {
-   "fieldname": "doctors",
-   "fieldtype": "Table MultiSelect",
-   "label": "Doctors",
-   "options": "KC Case Doctor",
-   "reqd": 1
-  },
-  {
    "fieldname": "case_date",
    "fieldtype": "Date",
    "label": "Case Date",
@@ -56,59 +38,7 @@
    "fieldtype": "Time",
    "label": "Case Time",
    "reqd": 1,
-   "in_list_view": 1,
    "description": "What time the case will be attended"
-  },
-  {
-   "fieldname": "attended",
-   "fieldtype": "Check",
-   "label": "Attended",
-   "default": "0",
-   "in_list_view": 1,
-   "description": "Leave unticked for a planned case; it shows in the follow-ups until it is marked attended"
-  },
-  {
-   "fieldname": "attended_by",
-   "fieldtype": "Link",
-   "label": "Attended By",
-   "options": "User",
-   "depends_on": "eval:doc.attended",
-   "mandatory_depends_on": "eval:doc.attended",
-   "search_index": 1,
-   "in_standard_filter": 1,
-   "description": "Who actually attended the case (can differ from the rep who created it)"
-  },
-  {
-   "fieldname": "cancelled",
-   "fieldtype": "Check",
-   "label": "Cancelled",
-   "default": "0",
-   "read_only": 1,
-   "in_list_view": 1,
-   "in_standard_filter": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "cancelled_by",
-   "fieldtype": "Link",
-   "label": "Cancelled By",
-   "options": "User",
-   "read_only": 1,
-   "depends_on": "eval:doc.cancelled"
-  },
-  {
-   "fieldname": "cancelled_on",
-   "fieldtype": "Datetime",
-   "label": "Cancelled On",
-   "read_only": 1,
-   "depends_on": "eval:doc.cancelled"
-  },
-  {
-   "fieldname": "cancel_reason",
-   "fieldtype": "Small Text",
-   "label": "Cancel Reason",
-   "read_only": 1,
-   "depends_on": "eval:doc.cancelled"
   },
   {
    "fieldname": "cb_1",
@@ -116,24 +46,46 @@
    "label": "Cb 1"
   },
   {
-   "fieldname": "sales_rep",
-   "fieldtype": "Link",
-   "label": "Sales Rep",
-   "options": "User",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Planned\nAttended\nCancelled",
+   "default": "Planned",
    "reqd": 1,
-   "default": "__user",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "description": "Planned cases are visible to the whole team; once attended the case belongs to whoever attended it."
+  },
+  {
+   "fieldname": "employee",
+   "fieldtype": "Link",
+   "label": "Attended By",
+   "options": "Employee",
+   "depends_on": "eval:doc.status=='Attended'",
    "in_standard_filter": 1,
    "search_index": 1
   },
   {
-   "fieldname": "sales_person",
-   "fieldtype": "Link",
-   "label": "Sales Person",
-   "options": "Sales Person",
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Attended By Name",
+   "fetch_from": "employee.employee_name",
    "read_only": 1,
-   "in_standard_filter": 1,
-   "search_index": 1,
-   "description": "Empty while the case is planned (visible to everyone); set from whoever attended it once attended. Team visibility follows User Permissions on Sales Person."
+   "in_list_view": 1,
+   "depends_on": "eval:doc.status=='Attended'"
+  },
+  {
+   "fieldname": "sb_doctors",
+   "fieldtype": "Section Break",
+   "label": "Doctors"
+  },
+  {
+   "fieldname": "doctors",
+   "fieldtype": "Table",
+   "label": "Doctors",
+   "options": "KC Case Doctor",
+   "reqd": 1
   },
   {
    "fieldname": "sb_products",
@@ -157,16 +109,15 @@
    "fieldname": "sb_used",
    "fieldtype": "Section Break",
    "label": "Used Products",
-   "depends_on": "eval:doc.attended"
+   "depends_on": "eval:doc.status=='Attended'"
   },
   {
    "fieldname": "used_products",
    "fieldtype": "Select",
    "label": "Used Products?",
    "options": "\nYes\nNo",
-   "depends_on": "eval:doc.attended",
-   "mandatory_depends_on": "eval:doc.attended",
-   "in_list_view": 1,
+   "depends_on": "eval:doc.status=='Attended'",
+   "mandatory_depends_on": "eval:doc.status=='Attended'",
    "in_standard_filter": 1,
    "description": "Info only, does not touch stock"
   },
@@ -175,57 +126,43 @@
    "fieldtype": "Table",
    "label": "Used Items",
    "options": "KC Case Used Item",
-   "depends_on": "eval:doc.attended && doc.used_products=='Yes'",
-   "mandatory_depends_on": "eval:doc.attended && doc.used_products=='Yes'"
+   "depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'",
+   "mandatory_depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'"
   },
   {
-   "fieldname": "sb_postponed",
+   "fieldname": "sb_log",
    "fieldtype": "Section Break",
-   "label": "Postponements",
+   "label": "History",
    "collapsible": 1,
-   "depends_on": "eval:doc.postponed_count"
+   "depends_on": "eval:(doc.log || []).length"
   },
   {
-   "fieldname": "postponed_count",
-   "fieldtype": "Int",
-   "label": "Times Postponed",
-   "read_only": 1,
-   "default": "0",
-   "in_standard_filter": 1
-  },
-  {
-   "fieldname": "postponements",
+   "fieldname": "log",
    "fieldtype": "Table",
-   "label": "Postponement Log",
-   "options": "KC Case Postponement",
+   "label": "History",
+   "options": "KC Case Log",
    "read_only": 1
   }
  ],
  "field_order": [
   "naming_series",
   "hospital",
-  "doctor",
-  "doctors",
   "case_date",
   "case_time",
-  "attended",
-  "attended_by",
-  "cancelled",
-  "cancelled_by",
-  "cancelled_on",
-  "cancel_reason",
   "cb_1",
-  "sales_rep",
-  "sales_person",
+  "status",
+  "employee",
+  "employee_name",
+  "sb_doctors",
+  "doctors",
   "sb_products",
   "products",
   "notes",
   "sb_used",
   "used_products",
   "used_items",
-  "sb_postponed",
-  "postponed_count",
-  "postponements"
+  "sb_log",
+  "log"
  ],
  "permissions": [
   {
@@ -241,7 +178,7 @@
    "share": 1
   },
   {
-   "role": "Sales Manager",
+   "role": "KC Manager",
    "read": 1,
    "report": 1,
    "print": 1,
@@ -253,7 +190,7 @@
    "share": 1
   },
   {
-   "role": "Sales Rep",
+   "role": "KC Rep",
    "read": 1,
    "report": 1,
    "print": 1,
@@ -275,5 +212,5 @@
  "autoname": "naming_series:",
  "naming_rule": "By \"Naming Series\" field",
  "title_field": "hospital",
- "search_fields": "hospital,doctor"
+ "search_fields": "hospital,status"
 }

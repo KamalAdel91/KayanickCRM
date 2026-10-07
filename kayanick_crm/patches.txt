@@ -13,3 +13,4 @@ kayanick_crm.patches.doctors_to_table
 kayanick_crm.patches.v1.refresh_visit_dates
 kayanick_crm.patches.v1.native_permissions
 kayanick_crm.patches.v1.planned_cases_open
+kayanick_crm.patches.v2.employee_model

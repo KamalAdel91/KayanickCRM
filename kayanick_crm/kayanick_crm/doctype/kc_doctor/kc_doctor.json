@@ -78,7 +78,7 @@
    "share": 1
   },
   {
-   "role": "Sales Manager",
+   "role": "KC Manager",
    "read": 1,
    "report": 1,
    "print": 1,
@@ -90,7 +90,7 @@
    "share": 1
   },
   {
-   "role": "Sales Rep",
+   "role": "KC Rep",
    "read": 1,
    "report": 1,
    "print": 1,

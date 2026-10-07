@@ -98,12 +98,14 @@ async function submitAttended(attended) {
   }
   marking.value = true
   try {
-    await call("kayanick_crm.case_api.set_attended", {
+    const r = await call("kayanick_crm.case_api.set_attended", {
       name: c.value.name, attended: attended ? 1 : 0, used_products: attended ? ans.value.used : "",
       attended_by: attended && ans.value.by ? ans.value.by.name : "",
       used_items: attended && ans.value.used === "Yes" ? ans.value.items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
     }, { post: true })
     answering.value = false
+    // attended by someone outside this user's records: the case is his now
+    if (r && r.can_read === false) { router.replace({ name: "cases", query: { tab: "attended" } }); return }
     await load()
   } catch (e) { error.value = e.message; window.scrollTo({ top: 0, behavior: "smooth" }) }
   finally { marking.value = false }

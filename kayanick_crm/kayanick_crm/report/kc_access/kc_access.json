@@ -1,27 +1,21 @@
 {
  "doctype": "Report",
- "name": "Sales Rep Activity",
- "report_name": "Sales Rep Activity",
+ "name": "KC Access",
+ "report_name": "KC Access",
  "ref_doctype": "KC Visit",
  "report_type": "Script Report",
  "is_standard": "Yes",
  "module": "KAYANICK CRM",
  "disabled": 0,
- "add_total_row": 1,
+ "add_total_row": 0,
  "prepared_report": 0,
+ "modified": "2026-10-07 18:00:00.000000",
  "roles": [
   {
    "role": "KC Manager"
   },
   {
-   "role": "KC Viewer"
-  },
-  {
-   "role": "KC Rep"
-  },
-  {
    "role": "System Manager"
   }
- ],
- "modified": "2026-10-07 18:00:00.000000"
+ ]
 }

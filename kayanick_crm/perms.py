@@ -1,32 +1,63 @@
 """Access helpers for Kayanick CRM.
 
-The app has no permission rules of its own. Everything is ERPNext's standard system:
-- Role Permission Manager decides what each role can read / write / create / delete.
-- User Permissions on Sales Person decide whose visits and cases a user sees. Sales Person is a tree,
-  so a manager given his own node also sees every rep below him.
-- KC Visit / KC Case carry a `sales_person` field, filled here from the user (User -> Employee -> Sales Person).
+The app has no permission rules of its own; it runs on ERPNext's standard system:
+- Roles decide what a user can do: KC Rep (log visits and cases), KC Manager (also edit, delete and manage the
+  lists), KC Viewer (read only). System Manager can do everything.
+- The Employee decides whose records a user sees. KC Visit and KC Case carry an `employee` field (the rep who
+  visited / whoever attended the case). When "Create User Permission" is ticked on a user's Employee, ERPNext
+  limits him to his own Employee and everyone below him in Reports To. Users without it see everything.
+- A planned case has no employee yet, so the whole team sees it (ERPNext shows records with an empty link
+  while "Apply Strict User Permissions" is off).
 """
 import frappe
+from frappe import _
+
+APP_ROLES = ("KC Rep", "KC Manager", "KC Viewer")
+FIELD_ROLES = ("KC Rep", "KC Manager")  # people who log visits and attend cases
 
 
-def sales_person_of(user):
-    """The enabled Sales Person linked to this user through his Employee record, if any."""
-    if not user:
+def employee_of(user=None):
+    """The active Employee linked to this user (User ID on the Employee), if any."""
+    user = user or frappe.session.user
+    if not user or user == "Guest":
         return None
-    employees = frappe.get_all("Employee", filters={"user_id": user}, pluck="name")
-    if not employees:
-        return None
-    rows = frappe.get_all("Sales Person", filters={"employee": ["in", employees], "enabled": 1},
-                          pluck="name", order_by="lft asc", limit=1)
+    rows = frappe.get_all("Employee", filters={"user_id": user, "status": "Active"}, pluck="name",
+                          order_by="creation asc", limit=1)
     return rows[0] if rows else None
 
 
-def sales_users():
-    """Users linked to an enabled Sales Person (the people who can attend a case)."""
-    employees = frappe.get_all("Sales Person", filters={"enabled": 1, "employee": ["is", "set"]}, pluck="employee")
-    if not employees:
-        return set()
-    return {u for u in frappe.get_all("Employee", filters={"name": ["in", employees]}, pluck="user_id") if u}
+def require_employee(user=None):
+    employee = employee_of(user)
+    if not employee:
+        frappe.throw(_("Your user is not linked to an Employee. Ask the admin to put your user in "
+                       "User ID on your Employee record."))
+    return employee
+
+
+def user_of(employee):
+    return frappe.db.get_value("Employee", employee, "user_id") if employee else None
+
+
+def field_users():
+    """{user: employee} for enabled users with KC Rep / KC Manager and an active Employee."""
+    users = set(frappe.get_all("Has Role", filters={"parenttype": "User", "role": ["in", FIELD_ROLES]},
+                               pluck="parent"))
+    users = set(frappe.get_all("User", filters={"name": ["in", list(users) or [""]], "enabled": 1}, pluck="name"))
+    out = {}
+    for e in frappe.get_all("Employee", filters={"user_id": ["in", list(users) or [""]], "status": "Active"},
+                            fields=["name", "user_id"], order_by="creation asc"):
+        out.setdefault(e.user_id, e.name)
+    return out
+
+
+def visible_employees(user=None):
+    """Employees whose visits / cases the user can see: None means everyone (no User Permission on Employee),
+    otherwise the set ERPNext allows (his own Employee and everyone below him in Reports To)."""
+    from frappe.core.doctype.user_permission.user_permission import get_user_permissions
+
+    perms = get_user_permissions(user or frappe.session.user).get("Employee") or []
+    perms = [p for p in perms if not p.get("applicable_for") or p.get("applicable_for") in ("KC Visit", "KC Case")]
+    return {p.get("doc") for p in perms} if perms else None
 
 
 def is_app_user(user=None):

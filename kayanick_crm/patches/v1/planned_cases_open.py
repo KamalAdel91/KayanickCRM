@@ -1,6 +1,5 @@
-import frappe
+"""Superseded by patches/v2/employee_model.py (planned cases have no Employee). Kept as a no-op."""
 
 
 def execute():
-    """Planned / cancelled cases carry no Sales Person, so every user sees them (as before KC Settings was removed)."""
-    frappe.db.sql("update `tabKC Case` set sales_person = null where attended = 0")
+    pass

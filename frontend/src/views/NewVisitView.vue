@@ -13,10 +13,11 @@ const route = useRoute()
 const router = useRouter()
 const opts = ref({ purposes: [], outcomes: [], levels: [], products: [] })
 const f = reactive({
-  hospital: "", hospitalSub: "", doctors: [], visit_date: localToday(), purpose: "", outcome: "", level: "",
+  hospital: "", hospitalSub: "", doctors: [], visit_date: localToday(), purpose: "", outcome: "",
   products: [], order: false, notes: "", next_action: "", has_next: "", next_visit_date: "",
 })
-const levelTouched = ref(false)
+// relationship level per doctor (doctor name -> level), starting from the doctor's current level
+const levels = reactive({})
 const geo = ref(null)
 const geoState = ref("locating")
 const saving = ref(false)
@@ -27,12 +28,10 @@ const error = ref("")
 const geoLabel = computed(() => (geo.value ? "Location on" : geoState.value === "locating" ? "Locating…" : "No location"))
 
 function doctorPicked(d) {
-  // the relationship level follows the first (primary) doctor
-  if (d && d.relationship_level && !levelTouched.value && !f.level) f.level = d.relationship_level
+  if (d && !(d.name in levels)) levels[d.name] = d.relationship_level || ""
 }
-function pickLevel(l) {
-  levelTouched.value = true
-  f.level = f.level === l ? "" : l
+function pickLevel(name, l) {
+  levels[name] = levels[name] === l ? "" : l
 }
 function toggleProduct(p) {
   const i = f.products.indexOf(p)
@@ -47,10 +46,12 @@ onMounted(async () => {
   try { opts.value = await call("kayanick_crm.mobile.get_options") }
   catch (e) { error.value = e.message }
   if (route.query.hospital) f.hospital = route.query.hospital
-  if (route.query.doctor) {
+  // from a follow-up: the doctors it is still open for (older links carry one doctor)
+  const wanted = String(route.query.doctors || route.query.doctor || "").split(",").filter(Boolean)
+  for (const name of wanted) {
     try {
-      const d = await call("kayanick_crm.mobile.get_doctor", { name: route.query.doctor })
-      if (d) { f.doctors = [d]; doctorPicked(d) }
+      const d = await call("kayanick_crm.mobile.get_doctor", { name })
+      if (d) { f.doctors = [...f.doctors, d]; doctorPicked(d) }
     } catch (e) {}
   }
   if (!navigator.geolocation) { geoState.value = "unsupported"; return }
@@ -67,7 +68,7 @@ const summary = computed(() => [
   { label: "Date", value: f.visit_date },
   { label: "Purpose", value: f.purpose },
   { label: "Outcome", value: f.outcome },
-  { label: "Relationship", value: f.level },
+  { label: "Relationship", value: f.doctors.map((d) => (f.doctors.length > 1 ? d.doctor_name + ": " : "") + (levels[d.name] || "")).join(", ") },
   { label: "Products", value: f.products.join(", ") },
   { label: "Order expected", value: f.order ? "Yes" : "" },
   { label: "Notes", value: f.notes },
@@ -82,7 +83,8 @@ function missing() {
   if (!f.visit_date) return "Choose the visit date"
   if (!f.purpose) return "Choose the visit purpose"
   if (!f.outcome) return "Choose the visit outcome"
-  if (!f.level) return "Choose the relationship level"
+  const noLevel = f.doctors.find((d) => !levels[d.name])
+  if (noLevel) return "Choose the relationship level for " + noLevel.doctor_name
   if (!f.products.length) return "Choose at least one product"
   if (!f.next_action.trim()) return "Write the next action"
   if (!f.has_next) return "Is there a next visit? Choose Yes or No"
@@ -100,8 +102,8 @@ async function save() {
   error.value = missing()
   if (error.value) { confirming.value = false; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   const payload = {
-    hospital: f.hospital, doctors: f.doctors.map((d) => d.name), visit_date: f.visit_date,
-    visit_purpose: f.purpose, visit_outcome: f.outcome, relationship_level: f.level,
+    hospital: f.hospital, doctors: f.doctors.map((d) => ({ doctor: d.name, relationship_level: levels[d.name] })),
+    visit_date: f.visit_date, visit_purpose: f.purpose, visit_outcome: f.outcome,
     products: f.products, order_expected: f.order, notes: f.notes,
     next_action: f.next_action, has_next_visit: f.has_next,
     next_visit_date: f.has_next === "Yes" ? f.next_visit_date : "",
@@ -177,10 +179,14 @@ async function save() {
           </div>
           <div>
             <label class="label">Relationship level<span class="text-red-500"> *</span></label>
-            <div class="flex flex-wrap gap-2">
-              <button v-for="l in opts.levels" :key="l" type="button" class="chip" :class="f.level === l ? chipOn(levelBadge(l)) : ''" @click="pickLevel(l)">
-                <span class="h-2 w-2 rounded-full" :class="dot(levelBadge(l))"></span>{{ l }}
-              </button>
+            <p v-if="!f.doctors.length" class="text-sm text-gray-400">Choose the doctors first</p>
+            <div v-for="d in f.doctors" :key="d.name" class="mt-2 first-of-type:mt-0">
+              <p v-if="f.doctors.length > 1" class="mb-1.5 truncate text-xs font-medium text-gray-600" dir="auto">{{ d.doctor_name }}</p>
+              <div class="flex flex-wrap gap-2">
+                <button v-for="l in opts.levels" :key="l" type="button" class="chip" :class="levels[d.name] === l ? chipOn(levelBadge(l)) : ''" @click="pickLevel(d.name, l)">
+                  <span class="h-2 w-2 rounded-full" :class="dot(levelBadge(l))"></span>{{ l }}
+                </button>
+              </div>
             </div>
           </div>
           <div>

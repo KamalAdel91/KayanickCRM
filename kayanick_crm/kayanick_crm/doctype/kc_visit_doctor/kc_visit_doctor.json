@@ -14,11 +14,24 @@
    "options": "KC Doctor",
    "reqd": 1,
    "in_list_view": 1,
-   "search_index": 1
+   "search_index": 1,
+   "columns": 6
+  },
+  {
+   "fieldname": "relationship_level",
+   "fieldtype": "Link",
+   "label": "Relationship Level",
+   "options": "KC Relationship Level",
+   "reqd": 1,
+   "in_list_view": 1,
+   "columns": 4,
+   "fetch_from": "doctor.relationship_level",
+   "fetch_if_empty": 1
   }
  ],
  "field_order": [
-  "doctor"
+  "doctor",
+  "relationship_level"
  ],
  "permissions": [],
  "row_format": "Dynamic"

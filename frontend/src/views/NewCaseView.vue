@@ -9,7 +9,7 @@ import HospitalDoctor from "../components/HospitalDoctor.vue"
 import ConfirmSheet from "../components/ConfirmSheet.vue"
 import UsedItems from "../components/UsedItems.vue"
 import AttendeePick from "../components/AttendeePick.vue"
-import { uploadFiles } from "../upload"
+import { uploadDetached } from "../upload"
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +18,7 @@ const productOptions = ref([])
 watch(() => f.case_date, (d) => { f.attended = !!d && d <= localToday() })
 const saving = ref(false)
 const attachments = ref([])
+const uploaded = new Map()  // attachment -> File name, kept across retries
 const confirming = ref(false)
 const error = ref("")
 
@@ -72,6 +73,8 @@ async function save() {
   error.value = ""
   saving.value = true
   try {
+    // files go up first: a case attended by someone else belongs to him, and its creator can't add files later
+    const up = attachments.value.length ? await uploadDetached(attachments.value, uploaded) : { names: [], failed: [] }
     const r = await call("kayanick_crm.case_api.create_case", {
       payload: JSON.stringify({
         hospital: f.hospital, doctors: f.doctors.map((d) => d.name), case_date: f.case_date, case_time: f.case_time, attended: f.attended, notes: f.notes,
@@ -79,10 +82,10 @@ async function save() {
         attended_by: f.attended && f.attended_by ? f.attended_by.name : "",
         used_products: f.attended ? f.used_products : "",
         used_items: f.attended && f.used_products === "Yes" ? f.used_items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
+        files: up.names,
       }),
     }, { post: true })
-    const failed = attachments.value.length ? await uploadFiles("KC Case", r.case, attachments.value) : []
-    if (failed.length) alert("Case saved, but these files failed to upload:\n" + failed.join("\n"))
+    if (up.failed.length) alert("Case saved, but these files failed to upload:\n" + up.failed.join("\n"))
     confirming.value = false
     router.push({ name: "cases", query: { saved: r.case } })
   } catch (e) {

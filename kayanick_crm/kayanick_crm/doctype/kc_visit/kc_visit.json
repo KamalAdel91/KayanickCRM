@@ -24,24 +24,21 @@
    "search_index": 1
   },
   {
-   "fieldname": "sales_rep",
+   "fieldname": "employee",
    "fieldtype": "Link",
    "label": "Sales Rep",
-   "options": "User",
-   "reqd": 1,
-   "default": "__user",
-   "in_standard_filter": 1,
-   "search_index": 1
-  },
-  {
-   "fieldname": "sales_person",
-   "fieldtype": "Link",
-   "label": "Sales Person",
-   "options": "Sales Person",
-   "read_only": 1,
+   "options": "Employee",
    "in_standard_filter": 1,
    "search_index": 1,
-   "description": "Set automatically from the rep (or whoever attended the case). Team visibility follows User Permissions on Sales Person."
+   "description": "Filled from the logged-in user's Employee. A rep sees only his own visits (Create User Permission on his Employee)."
+  },
+  {
+   "fieldname": "employee_name",
+   "fieldtype": "Data",
+   "label": "Sales Rep Name",
+   "fetch_from": "employee.employee_name",
+   "read_only": 1,
+   "in_list_view": 1
   },
   {
    "fieldname": "hospital",
@@ -52,24 +49,6 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "search_index": 1
-  },
-  {
-   "fieldname": "doctor",
-   "fieldtype": "Link",
-   "label": "Primary Doctor",
-   "options": "KC Doctor",
-   "reqd": 0,
-   "search_index": 1,
-   "read_only": 1,
-   "hidden": 1,
-   "description": "First doctor in the Doctors table (kept in sync automatically)"
-  },
-  {
-   "fieldname": "doctors",
-   "fieldtype": "Table MultiSelect",
-   "label": "Doctors",
-   "options": "KC Visit Doctor",
-   "reqd": 1
   },
   {
    "fieldname": "cb_1",
@@ -94,19 +73,22 @@
    "reqd": 1
   },
   {
-   "fieldname": "relationship_level",
-   "fieldtype": "Link",
-   "label": "Relationship Level",
-   "options": "KC Relationship Level",
-   "fetch_from": "doctor.relationship_level",
-   "fetch_if_empty": 1,
-   "reqd": 1
-  },
-  {
    "fieldname": "order_expected",
    "fieldtype": "Check",
    "label": "Order Expected",
    "in_standard_filter": 1
+  },
+  {
+   "fieldname": "sb_doctors",
+   "fieldtype": "Section Break",
+   "label": "Doctors"
+  },
+  {
+   "fieldname": "doctors",
+   "fieldtype": "Table",
+   "label": "Doctors",
+   "options": "KC Visit Doctor",
+   "reqd": 1
   },
   {
    "fieldname": "sb_details",
@@ -173,16 +155,15 @@
  "field_order": [
   "naming_series",
   "visit_date",
-  "sales_rep",
-  "sales_person",
+  "employee",
+  "employee_name",
   "hospital",
-  "doctor",
-  "doctors",
   "cb_1",
   "visit_purpose",
   "visit_outcome",
-  "relationship_level",
   "order_expected",
+  "sb_doctors",
+  "doctors",
   "sb_details",
   "products",
   "notes",
@@ -208,7 +189,7 @@
    "share": 1
   },
   {
-   "role": "Sales Manager",
+   "role": "KC Manager",
    "read": 1,
    "report": 1,
    "print": 1,
@@ -220,7 +201,7 @@
    "share": 1
   },
   {
-   "role": "Sales Rep",
+   "role": "KC Rep",
    "read": 1,
    "report": 1,
    "print": 1,
@@ -241,5 +222,6 @@
  "row_format": "Dynamic",
  "autoname": "naming_series:",
  "naming_rule": "By \"Naming Series\" field",
- "title_field": "hospital"
+ "title_field": "hospital",
+ "search_fields": "hospital,employee_name"
 }

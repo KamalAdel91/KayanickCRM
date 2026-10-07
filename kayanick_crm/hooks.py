@@ -260,10 +260,9 @@ add_to_apps_screen = [
 
 
 fixtures = [
-    {"dt": "Role", "filters": [["name", "in", ["Sales Rep", "KC Viewer"]]]},
+    {"dt": "Role", "filters": [["name", "in", ["KC Rep", "KC Manager", "KC Viewer"]]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Dashboard Chart", "filters": [["module", "=", "KAYANICK CRM"]]},
-    {"dt": "Workspace Sidebar", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Desktop Icon", "filters": [["name", "=", "Kayanick CRM"]]},
     "KC Area",
     "KC Hospital Type",

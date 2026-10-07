@@ -1,24 +1,44 @@
 {
  "doctype": "DocType",
- "name": "KC Case Postponement",
+ "name": "KC Case Log",
  "module": "KAYANICK CRM",
  "custom": 0,
  "istable": 1,
- "editable_grid": 1,
+ "editable_grid": 0,
  "engine": "InnoDB",
+ "row_format": "Dynamic",
+ "field_order": [
+  "action",
+  "from_date",
+  "from_time",
+  "to_date",
+  "to_time",
+  "reason",
+  "done_by",
+  "done_on"
+ ],
  "fields": [
+  {
+   "fieldname": "action",
+   "fieldtype": "Select",
+   "label": "Action",
+   "options": "Postponed\nCancelled\nReopened",
+   "in_list_view": 1,
+   "read_only": 1,
+   "columns": 2
+  },
   {
    "fieldname": "from_date",
    "fieldtype": "Date",
    "label": "From Date",
    "in_list_view": 1,
-   "read_only": 1
+   "read_only": 1,
+   "columns": 1
   },
   {
    "fieldname": "from_time",
    "fieldtype": "Time",
    "label": "From Time",
-   "in_list_view": 1,
    "read_only": 1
   },
   {
@@ -26,13 +46,13 @@
    "fieldtype": "Date",
    "label": "To Date",
    "in_list_view": 1,
-   "read_only": 1
+   "read_only": 1,
+   "columns": 1
   },
   {
    "fieldname": "to_time",
    "fieldtype": "Time",
    "label": "To Time",
-   "in_list_view": 1,
    "read_only": 1
   },
   {
@@ -40,32 +60,26 @@
    "fieldtype": "Small Text",
    "label": "Reason",
    "in_list_view": 1,
-   "read_only": 1
+   "read_only": 1,
+   "columns": 3
   },
   {
-   "fieldname": "postponed_by",
+   "fieldname": "done_by",
    "fieldtype": "Link",
-   "label": "Postponed By",
+   "label": "By",
    "options": "User",
    "in_list_view": 1,
-   "read_only": 1
+   "read_only": 1,
+   "columns": 2
   },
   {
-   "fieldname": "postponed_on",
+   "fieldname": "done_on",
    "fieldtype": "Datetime",
-   "label": "Postponed On",
-   "read_only": 1
+   "label": "On",
+   "in_list_view": 1,
+   "read_only": 1,
+   "columns": 1
   }
  ],
- "field_order": [
-  "from_date",
-  "from_time",
-  "to_date",
-  "to_time",
-  "reason",
-  "postponed_by",
-  "postponed_on"
- ],
- "permissions": [],
- "row_format": "Dynamic"
+ "permissions": []
 }

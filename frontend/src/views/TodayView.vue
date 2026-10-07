@@ -42,7 +42,7 @@ function caseWhen(c) {
 function logVisit(v) {
   const query = {}
   if (v && v.hospital) query.hospital = v.hospital
-  if (v && v.doctor) query.doctor = v.doctor
+  if (v && v.doctors && v.doctors.length) query.doctors = v.doctors.join(",")
   router.push({ name: "visit", query })
 }
 onMounted(() => {

@@ -3,6 +3,8 @@ import frappe
 
 
 def execute():
+    if not frappe.db.has_column("KC Visit", "doctor"):  # the single doctor field is gone (v2)
+        return
     for parent, child, folder in (("KC Visit", "KC Visit Doctor", "kc_visit_doctor"),
                                   ("KC Case", "KC Case Doctor", "kc_case_doctor")):
         frappe.reload_doc("kayanick_crm", "doctype", folder)
