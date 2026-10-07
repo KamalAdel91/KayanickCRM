@@ -231,7 +231,7 @@ def search_items(text=""):
     """ERPNext items for the 'used products' picker (info only, no stock effect)."""
     _check_role()
     text = (text or "").strip()[:60]
-    kw = dict(filters={"disabled": 0, "has_variants": 0}, fields=["name", "item_name", "stock_uom"],
+    kw = dict(filters={"disabled": 0, "has_variants": 0, "is_stock_item": 1}, fields=["name", "item_name", "stock_uom"],
               order_by="item_name asc", limit_page_length=50)
     if text:
         kw["or_filters"] = [["item_name", "like", "%" + text + "%"], ["name", "like", "%" + text + "%"]]
