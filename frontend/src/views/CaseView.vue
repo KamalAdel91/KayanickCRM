@@ -22,10 +22,10 @@ const deleting = ref(false)
 const marking = ref(false)
 // marking attended asks "used products?" first
 const answering = ref(false)
-const ans = ref({ used: "", items: [], by: null })
+const ans = ref({ used: "", items: [], by: null, note: "" })
 function startAttend() {
   error.value = ""
-  ans.value = { used: "", items: [], by: null }
+  ans.value = { used: "", items: [], by: null, note: "" }
   postponing.value = false
   cancelling.value = false
   answering.value = true
@@ -94,6 +94,7 @@ async function submitAttended(attended) {
   error.value = ""
   if (attended) {
     const err = usedItemsError(ans.value.used, ans.value.items)
+      || (!ans.value.note.trim() ? "Write your notes on the case" : "")
     if (err) { error.value = err; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   }
   marking.value = true
@@ -101,6 +102,7 @@ async function submitAttended(attended) {
     const r = await call("kayanick_crm.case_api.set_attended", {
       name: c.value.name, attended: attended ? 1 : 0, used_products: attended ? ans.value.used : "",
       attended_by: attended && ans.value.by ? ans.value.by.name : "",
+      attended_notes: attended ? ans.value.note : "",
       used_items: attended && ans.value.used === "Yes" ? ans.value.items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
     }, { post: true })
     answering.value = false
@@ -184,6 +186,11 @@ onMounted(load)
           </div>
         </section>
 
+        <section v-if="c.attended && c.attended_notes">
+          <p class="section-label"><Icon name="file-text" :size="14" />Attendance notes</p>
+          <div class="card whitespace-pre-line p-4 text-sm" dir="auto">{{ c.attended_notes }}</div>
+        </section>
+
         <section v-if="c.notes">
           <p class="section-label"><Icon name="file-text" :size="14" />Notes</p>
           <div class="card whitespace-pre-line p-4 text-sm" dir="auto">{{ c.notes }}</div>
@@ -213,6 +220,10 @@ onMounted(load)
           <div class="card space-y-3 p-4">
             <AttendeePick v-model="ans.by" />
             <UsedItems v-model:used="ans.used" v-model:items="ans.items" />
+            <div>
+              <label class="label">Notes<span class="text-red-500"> *</span></label>
+              <textarea v-model="ans.note" rows="3" placeholder="What happened in the case?" class="input h-auto resize-none py-2" dir="auto"></textarea>
+            </div>
             <div class="grid grid-cols-2 gap-2 pt-1">
               <button type="button" class="btn btn-subtle h-11" :disabled="marking" @click="answering = false">Cancel</button>
               <button type="button" class="btn btn-primary h-11" :disabled="marking" @click="submitAttended(true)">{{ marking ? "Saving…" : "Save" }}</button>
