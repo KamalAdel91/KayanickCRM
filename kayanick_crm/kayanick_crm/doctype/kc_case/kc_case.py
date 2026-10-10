@@ -17,11 +17,14 @@ class KCCase(Document):
             self.employee_name = None
             self.used_products = None
             self.used_items = []
+            self.attended_notes = None
             return
         # attended: it belongs to whoever attended it (and, through Reports To, to his managers)
         if not self.employee:
             self.employee = require_employee()
         self.employee_name = frappe.db.get_value("Employee", self.employee, "employee_name")
+        if not (self.attended_notes or "").strip():
+            frappe.throw(_("Write your notes on the case"))
         if self.used_products not in ("Yes", "No"):
             frappe.throw(_("Did you use products in this case? Choose Yes or No"))
         if self.used_products != "Yes":

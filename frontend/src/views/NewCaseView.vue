@@ -13,7 +13,7 @@ import { uploadDetached } from "../upload"
 
 const route = useRoute()
 const router = useRouter()
-const f = reactive({ hospital: "", hospitalSub: "", doctors: [], case_date: localToday(), case_time: "", attended: true, notes: "", products: [], used_products: "", used_items: [], attended_by: null })
+const f = reactive({ hospital: "", hospitalSub: "", doctors: [], case_date: localToday(), case_time: "", attended: true, notes: "", products: [], used_products: "", used_items: [], attended_by: null, attended_notes: "" })
 const productOptions = ref([])
 watch(() => f.case_date, (d) => { f.attended = !!d && d <= localToday() })
 const saving = ref(false)
@@ -54,6 +54,7 @@ const summary = computed(() => [
   { label: "Attended by", value: f.attended ? (f.attended_by ? f.attended_by.full_name || f.attended_by.name : "Me") : "" },
   { label: "Used products", value: f.attended ? f.used_products : "" },
   { label: "Used items", value: f.attended && f.used_products === "Yes" ? usedItemsText(f.used_items) : "" },
+  { label: "Attendance notes", value: f.attended ? f.attended_notes : "" },
   { label: "Notes", value: f.notes },
   { label: "Attachments", value: attachments.value.length ? String(attachments.value.length) : "" },
 ])
@@ -64,7 +65,8 @@ function askSave() {
   if (!f.doctors.length) { error.value = "Choose at least one doctor"; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   const req = !f.case_date ? "Choose the case date" : !f.case_time ? "Choose the case time" : !f.products.length ? "Choose at least one product" : !f.notes.trim() ? "Write the notes" : ""
   if (req) { error.value = req; window.scrollTo({ top: 0, behavior: "smooth" }); return }
-  const usedErr = f.attended ? usedItemsError(f.used_products, f.used_items) : ""
+  const usedErr = f.attended ? (usedItemsError(f.used_products, f.used_items)
+    || (!f.attended_notes.trim() ? "Write your notes on the case" : "")) : ""
   if (usedErr) { error.value = usedErr; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   confirming.value = true
 }
@@ -81,6 +83,7 @@ async function save() {
         products: f.products,
         attended_by: f.attended && f.attended_by ? f.attended_by.name : "",
         used_products: f.attended ? f.used_products : "",
+        attended_notes: f.attended ? f.attended_notes : "",
         used_items: f.attended && f.used_products === "Yes" ? f.used_items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
         files: up.names,
       }),
@@ -151,6 +154,10 @@ async function save() {
           </button>
           <AttendeePick v-if="f.attended" v-model="f.attended_by" />
           <UsedItems v-if="f.attended" v-model:used="f.used_products" v-model:items="f.used_items" />
+          <div v-if="f.attended">
+            <label class="label">Attendance notes<span class="text-red-500"> *</span></label>
+            <textarea v-model="f.attended_notes" rows="3" placeholder="What happened in the case?" class="input h-auto resize-none py-2" dir="auto"></textarea>
+          </div>
         </div>
       </section>
 

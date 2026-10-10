@@ -130,6 +130,13 @@
    "mandatory_depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'"
   },
   {
+   "fieldname": "attended_notes",
+   "fieldtype": "Small Text",
+   "label": "Attendance Notes",
+   "depends_on": "eval:doc.status=='Attended'",
+   "mandatory_depends_on": "eval:doc.status=='Attended'"
+  },
+  {
    "fieldname": "sb_log",
    "fieldtype": "Section Break",
    "label": "History",
@@ -161,6 +168,7 @@
   "sb_used",
   "used_products",
   "used_items",
+  "attended_notes",
   "sb_log",
   "log"
  ],

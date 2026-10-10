@@ -114,6 +114,7 @@ def get_case(name):
         "notes": doc.notes, "sales_rep": doc.owner, "rep_name": get_fullname(doc.owner),
         "products": [p.product for p in doc.products],
         "used_products": doc.used_products or "",
+        "attended_notes": (doc.attended_notes or "") if attended else "",
         "used_items": [{"item_code": r.item_code, "item_name": r.item_name, "qty": r.qty, "uom": r.uom}
                        for r in doc.used_items],
         "attachments": attachments("KC Case", doc.name),
@@ -192,9 +193,10 @@ def _used_rows(items):
             for r in (items or []) if r.get("item_code")]
 
 
-def _apply_used(doc, used_products, used_items, attended_by=None):
-    """Who attended + the used products, for a case being saved as attended."""
+def _apply_used(doc, used_products, used_items, attended_by=None, attended_notes=None):
+    """Who attended + the used products + his notes, for a case being saved as attended."""
     doc.employee = _attendee(attended_by)
+    doc.attended_notes = (attended_notes or "").strip()
     if used_products not in ("Yes", "No"):
         frappe.throw(_("Did you use products in this case? Choose Yes or No"))
     doc.used_products = used_products
@@ -239,14 +241,14 @@ def search_items(text=""):
 
 
 @frappe.whitelist(methods=["POST"])
-def set_attended(name, attended=1, used_products=None, used_items=None, attended_by=None):
+def set_attended(name, attended=1, used_products=None, used_items=None, attended_by=None, attended_notes=None):
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")  # on the case as it is now
     if doc.status == "Cancelled":
         frappe.throw(_("This case is cancelled. Reopen it first"))
     if cint(attended):
         doc.status = "Attended"
-        _apply_used(doc, used_products, used_items, attended_by)
+        _apply_used(doc, used_products, used_items, attended_by, attended_notes)
     else:
         doc.status = "Planned"
     doc.flags.handled_by = frappe.session.user
@@ -278,7 +280,7 @@ def create_case(payload):
         "products": [{"product": p} for p in (data.get("products") or []) if p],
     })
     if case.status == "Attended":
-        _apply_used(case, data.get("used_products"), data.get("used_items"), data.get("attended_by"))
+        _apply_used(case, data.get("used_products"), data.get("used_items"), data.get("attended_by"), data.get("attended_notes"))
     case.flags.handled_by = frappe.session.user
     # Create permission was checked above; the attendee may be someone outside this user's team
     case.insert(ignore_permissions=True)
