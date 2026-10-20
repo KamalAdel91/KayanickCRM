@@ -28,6 +28,11 @@ Visits and cases carry an **Employee**: the rep who made the visit, or whoever a
   it; the rep who planned it (and whoever marked it attended) keep read access.
 - Keep **Apply Strict User Permissions** (System Settings) off, or planned cases disappear for the reps.
 
+**Customer debt** (Debt tab) follows the same rule. A customer belongs to the rep in his **Sales Team**
+(Customer > Sales Team > Sales Person, with the rep's Employee on the Sales Person). A rep sees what his customers
+and his team's customers owe: open invoices, overdue days, payments not yet matched and the last payments.
+Customers with no Sales Team appear only for users who see everything.
+
 The **KC Access** report (sidebar > Settings) lists every user with what he sees and flags mistakes. From the
 terminal: `bench --site <site> execute kayanick_crm.access.check`
 
