@@ -209,9 +209,6 @@ def get_customer_debt(customer):
     }
 
 
-PRINT_FORMAT = "Kayanick Sales Invoice Template"  # falls back to the Sales Invoice default when missing
-
-
 def _invoice(name):
     """A submitted invoice of a customer the user sees."""
     _check_app_user()
@@ -268,7 +265,10 @@ def invoice_pdf(name):
     """The printed invoice as a PDF. Reps can't print Sales Invoices themselves, so the print permission check is
     skipped here, after _invoice checked the customer is his."""
     doc = _invoice(name)
-    print_format = PRINT_FORMAT if frappe.db.exists("Print Format", {"name": PRINT_FORMAT, "disabled": 0}) else None
+    # the Sales Invoice default (Customize Form > Default Print Format), as the Desk prints it; Standard when unset
+    print_format = frappe.get_meta("Sales Invoice").default_print_format or None
+    if print_format and not frappe.db.exists("Print Format", {"name": print_format, "disabled": 0}):
+        print_format = None
     frappe.flags.ignore_print_permissions = True
     try:
         pdf = frappe.get_print("Sales Invoice", doc.name, print_format=print_format, doc=doc, as_pdf=True)
