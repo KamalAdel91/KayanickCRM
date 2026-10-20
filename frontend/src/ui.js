@@ -41,6 +41,11 @@ export function usedItemsText(items) {
   return items.map((r) => `${r.item_name} × ${r.qty}${r.uom ? " " + r.uom : ""}`).join("\n")
 }
 
+// 1234567.5 -> "1,234,568" (whole units; debt figures)
+export function money(n) {
+  return Math.round(Number(n) || 0).toLocaleString("en-US")
+}
+
 // local date as YYYY-MM-DD
 export function ymd(d) {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)

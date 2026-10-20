@@ -283,17 +283,15 @@ after_migrate = ["kayanick_crm.setup.fix_module_def", "kayanick_crm.setup.hide_e
 
 doc_events = {
     "KC Visit": {"after_insert": "kayanick_crm.notify.visit_created"},
-    "KC Case": {"after_insert": "kayanick_crm.notify.case_created"},
+    "KC Case": {
+        "after_insert": "kayanick_crm.notify.case_created",
+        "validate": "kayanick_crm.stock_items.validate_stock_items",
+    },
+    "Payment Entry": {"on_submit": "kayanick_crm.notify.payment_received"},
 }
 
 scheduler_events = {
-    "cron": {"0 8 * * *": ["kayanick_crm.notify.morning_reminder"]},
+    "cron": {"0 8 * * *": ["kayanick_crm.notify.morning_reminder", "kayanick_crm.notify.debt_alerts"]},
 }
 
 page_renderer = ["kayanick_crm.sw.ServiceWorkerRenderer", "kayanick_crm.branding.BrandingRenderer"]
-
-doc_events = {
-    "KC Case": {
-        "validate": "kayanick_crm.stock_items.validate_stock_items",
-    },
-}

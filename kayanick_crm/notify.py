@@ -1,24 +1,37 @@
 """Notifications: in-app (Notification Log, also shows in the Desk bell) + phone push through
 Frappe Cloud's push relay when "Enable Push Notification Relay" is on."""
+from urllib.parse import quote
+
 import frappe
 from frappe.utils import get_fullname, get_url, getdate, today
 
 PUSH_PROJECT = "hrms"  # the project Frappe HR uses on the relay (custom names are rejected)
 APP_ROUTE = "/KayanickCRM"
-ROUTES = {"KC Visit": "/visits/", "KC Case": "/case/"}
+ROUTES = {"KC Visit": "/visits/", "KC Case": "/case/", "Customer": "/debts/"}
 REMINDER_PREFIX = "Good morning! You have"
+DEBT_DIGEST_PREFIX = "Overdue debt:"
 
 
 def _ours(user, **extra):
     """Only this app's notifications: linked to a visit/case, or the daily reminder."""
     filters = {"for_user": user, **extra}
-    or_filters = [["document_type", "in", list(ROUTES)], ["subject", "like", REMINDER_PREFIX + "%"]]
+    or_filters = [["document_type", "in", list(ROUTES)], ["subject", "like", REMINDER_PREFIX + "%"],
+                  ["subject", "like", DEBT_DIGEST_PREFIX + "%"]]
     return filters, or_filters
 
 
 def unread(user):
     filters, or_filters = _ours(user, read=0)
     return len(frappe.get_all("Notification Log", filters=filters, or_filters=or_filters, pluck="name"))
+
+
+def _route(doctype, name, subject=""):
+    """Where a notification opens in the app."""
+    if doctype in ROUTES and name:
+        return ROUTES[doctype] + quote(name, safe="")
+    if (subject or "").startswith(DEBT_DIGEST_PREFIX):
+        return "/debts"
+    return ""
 
 
 def notify(user, subject, doctype=None, name=None, from_user=None, title=None, body=None):
@@ -29,8 +42,7 @@ def notify(user, subject, doctype=None, name=None, from_user=None, title=None, b
         "doctype": "Notification Log", "for_user": user, "type": "Alert", "subject": subject,
         "document_type": doctype, "document_name": name, "from_user": from_user,
     }).insert(ignore_permissions=True)
-    _push(user, body or subject, APP_ROUTE + (ROUTES.get(doctype, "/") + name if doctype and name else ""),
-          title=title, tag=name)
+    _push(user, body or subject, APP_ROUTE + (_route(doctype, name, subject) or "/"), title=title, tag=name)
 
 
 def _push(user, body, route, title=None, tag=None):
@@ -194,6 +206,80 @@ def morning_reminder():
                    title="☀️ Good morning", body="Today: " + ", ".join(parts))
 
 
+# ---- customer debt ----
+
+WEEKLY_DEBT_DAY = 6  # Sunday (Monday is 0), the first day of the work week
+
+
+def _money(amount, currency):
+    return "{0:,.0f} {1}".format(amount or 0, currency).strip()
+
+
+def payment_received(doc, method=None):
+    if doc.party_type == "Customer" and doc.payment_type == "Receive":
+        frappe.enqueue("kayanick_crm.notify._payment_to_rep", name=doc.name, enqueue_after_commit=True)
+
+
+def _payment_to_rep(name):
+    """The customer's rep (and his managers) hear about a payment received."""
+    from kayanick_crm.debt_api import customer_reps
+    from kayanick_crm.perms import user_of
+
+    pe = frappe.get_doc("Payment Entry", name)
+    employee = customer_reps().get(pe.party)
+    if not employee:
+        return
+    customer = pe.party_name or pe.party
+    amount = _money(pe.paid_amount, pe.paid_from_account_currency)
+    for u in {user_of(employee)} | managers_of_employee(employee):
+        notify(u, "Payment received from {0}: {1}".format(customer, amount), "Customer", pe.party,
+               title="💵 Payment received", body="{0} · {1}".format(customer, amount))
+
+
+def debt_alerts():
+    """Daily: invoices that became overdue today, to the customer's rep and his managers (one line per customer).
+    Sundays: every rep and manager gets the overdue debt of the customers he sees."""
+    from kayanick_crm.debt_api import currency, customer_reps, days_overdue, open_invoices
+    from kayanick_crm.perms import user_of
+
+    day = getdate(today())
+    cur = currency()
+    reps = customer_reps()
+    newly = {}  # customer -> invoices due yesterday
+    for inv in open_invoices(set(reps)):
+        if inv.outstanding_amount > 0 and days_overdue(inv.due_date, day) == 1:
+            newly.setdefault(inv.customer, []).append(inv)
+    for customer, invoices in newly.items():
+        employee = reps[customer]
+        name = invoices[0].customer_name or customer
+        amount = _money(sum(i.outstanding_amount for i in invoices), cur)
+        what = invoices[0].name if len(invoices) == 1 else "{0} invoices".format(len(invoices))
+        verb = "is" if len(invoices) == 1 else "are"
+        for u in {user_of(employee)} | managers_of_employee(employee):
+            notify(u, "{0} of {1} {2} now overdue: {3}".format(what, name, verb, amount), "Customer", customer,
+                   title="⏰ Payment overdue", body="{0} · {1} · {2}".format(name, what, amount))
+
+    if day.weekday() == WEEKLY_DEBT_DAY:
+        weekly_debt_digest()
+
+
+def weekly_debt_digest():
+    from kayanick_crm.debt_api import currency, debts, visible_customers
+    from kayanick_crm.perms import field_users
+
+    cur = currency()
+    for user in field_users():
+        customers, reps = visible_customers(user)
+        rows, totals, _aging = debts(customers, reps)
+        if not totals["overdue"]:
+            continue
+        oldest = max(r.max_days for r in rows)
+        n = totals["overdue_customers"]
+        line = "{0} from {1} customer{2}, the oldest {3} days late".format(
+            _money(totals["overdue"], cur), n, "" if n == 1 else "s", oldest)
+        notify(user, DEBT_DIGEST_PREFIX + " " + line + ".", title="💰 Overdue debt this week", body=line)
+
+
 # ---- mobile API ----
 
 @frappe.whitelist()
@@ -231,8 +317,8 @@ def get_notifications():
                           fields=["name", "subject", "document_type", "document_name", "read", "creation", "from_user"],
                           order_by="creation desc", limit_page_length=50)
     for r in rows:
-        r["route"] = ROUTES.get(r.document_type, "/") + r.document_name if r.document_type in ROUTES and r.document_name else ""
         r["subject"] = frappe.utils.strip_html(r.subject or "")
+        r["route"] = _route(r.document_type, r.document_name, r.subject)
     return rows
 
 
