@@ -1,17 +1,24 @@
 """Customer debt for the mobile app.
 
 A customer belongs to the rep in his Sales Team (Customer > Sales Team > Sales Person, whose Employee is the rep).
-Who sees which customers follows the same Employee rule as visits and cases (see perms.py): a rep sees his own
-customers and those of everyone below him in Reports To; users without Create User Permission see every customer,
-including the ones with no rep.
+
+Who sees which customers:
+- A rep (no KC Manager / KC Viewer / System Manager role) sees only his own customers, whatever his User
+  Permissions say. A rep with no Employee sees none.
+- Everyone else follows the Employee rule of visits and cases (see perms.py): a manager with Create User Permission
+  sees his own and his team's customers; users without it see every customer, including the ones with no rep.
 
 Reps have no permission on Sales Invoice / Payment Entry, so the figures are read here, limited to those customers.
 """
 import frappe
 from frappe import _
-from frappe.utils import date_diff, flt, getdate, today
+from frappe.utils import add_days, date_diff, flt, getdate, today
 
-from kayanick_crm.perms import is_app_user, visible_employees
+from kayanick_crm.perms import employee_of, is_app_user, visible_employees
+
+BEYOND_OWN_ROLES = ("System Manager", "KC Manager", "KC Viewer")
+AGING = (("1-30", 30), ("31-60", 60), ("61-90", 90), ("90+", None))  # days overdue
+DUE_SOON_DAYS = 7
 
 
 def _check_app_user():
@@ -34,15 +41,19 @@ def customer_reps():
 
 def visible_customers(user=None):
     """(customers the user may see or None for all, {customer: Employee})."""
+    user = user or frappe.session.user
     reps = customer_reps()
+    if user != "Administrator" and not set(frappe.get_roles(user)) & set(BEYOND_OWN_ROLES):
+        me = employee_of(user)
+        return {c for c, e in reps.items() if me and e == me}, reps
     allowed = visible_employees(user)
     if allowed is None:
         return None, reps
     return {c for c, e in reps.items() if e in allowed}, reps
 
 
-def _open_invoices(customers):
-    """Submitted invoices with something outstanding (credit notes come in negative)."""
+def open_invoices(customers=None):
+    """Submitted invoices with something outstanding (credit notes come in negative). None: all customers."""
     filters = {"docstatus": 1, "outstanding_amount": ["!=", 0]}
     if customers is not None:
         filters["customer"] = ["in", list(customers) or [""]]
@@ -62,11 +73,17 @@ def _unallocated_payments(customers):
                           order_by="posting_date desc", limit_page_length=0)
 
 
-def _days_overdue(due_date, day):
+def days_overdue(due_date, day):
     return max(date_diff(day, due_date), 0) if due_date else 0
 
 
-def _rep_names(employees):
+def aging_bucket(days):
+    for label, upto in AGING:
+        if upto is None or days <= upto:
+            return label
+
+
+def rep_names(employees):
     employees = sorted({e for e in employees if e})
     if not employees:
         return {}
@@ -74,38 +91,39 @@ def _rep_names(employees):
                                as_list=True))
 
 
-@frappe.whitelist()
-def get_debts(employee=None):
-    """Customers that owe money, biggest first, with the totals. `employee` narrows to one rep's customers
-    (within what the user sees)."""
-    _check_app_user()
-    customers, reps = visible_customers()
-    if employee:
-        mine = {c for c, e in reps.items() if e == employee}
-        customers = mine if customers is None else customers & mine
-
+def debts(customers, reps):
+    """Per customer: balance, overdue, aging and what falls due soon; plus the totals. customers None: all."""
     day = getdate(today())
+    soon = getdate(add_days(day, DUE_SOON_DAYS))
     by = {}
 
     def row(customer, name=None):
         if customer not in by:
             by[customer] = frappe._dict(customer=customer, customer_name=name or customer, employee=reps.get(customer),
-                                        outstanding=0.0, overdue=0.0, unallocated=0.0, invoices=0, max_days=0)
+                                        outstanding=0.0, overdue=0.0, due_soon=0.0, unallocated=0.0, invoices=0,
+                                        max_days=0, next_due=None)
         return by[customer]
 
-    for inv in _open_invoices(customers):
+    aging = {label: 0.0 for label, _u in AGING}
+    for inv in open_invoices(customers):
         r = row(inv.customer, inv.customer_name)
-        r.outstanding += flt(inv.outstanding_amount)
-        if inv.outstanding_amount > 0:
-            r.invoices += 1
-            days = _days_overdue(inv.due_date, day)
-            if days:
-                r.overdue += flt(inv.outstanding_amount)
-                r.max_days = max(r.max_days, days)
+        amount = flt(inv.outstanding_amount)
+        r.outstanding += amount
+        if amount <= 0:
+            continue
+        r.invoices += 1
+        days = days_overdue(inv.due_date, day)
+        if days:
+            r.overdue += amount
+            r.max_days = max(r.max_days, days)
+            aging[aging_bucket(days)] += amount
+        elif inv.due_date and getdate(inv.due_date) <= soon:
+            r.due_soon += amount
+            r.next_due = min(r.next_due or inv.due_date, inv.due_date)
     for pe in _unallocated_payments(customers):
         row(pe.party).unallocated += flt(pe.unallocated_amount)
 
-    names = _rep_names(r.employee for r in by.values())
+    names = rep_names(r.employee for r in by.values())
     out = []
     for r in by.values():
         r.balance = r.outstanding - r.unallocated
@@ -121,9 +139,35 @@ def get_debts(employee=None):
             r.customer_name = titles.get(r.customer) or r.customer_name
     out.sort(key=lambda r: -r.balance)
 
-    totals = {k: sum(r[k] for r in out) for k in ("balance", "outstanding", "overdue", "unallocated")}
+    totals = {k: sum(r[k] for r in out) for k in ("balance", "outstanding", "overdue", "due_soon", "unallocated")}
     totals["customers"] = sum(1 for r in out if r.balance > 0)
-    return {"currency": _currency(), "totals": totals, "customers": out}
+    totals["overdue_customers"] = sum(1 for r in out if r.overdue > 0)
+    return out, totals, [{"label": label, "amount": aging[label]} for label, _u in AGING]
+
+
+@frappe.whitelist()
+def get_debts(employee=None):
+    """Customers that owe money, biggest first, with the totals and aging. `employee` narrows to one rep's
+    customers (within what the user sees)."""
+    _check_app_user()
+    customers, reps = visible_customers()
+    all_reps = sorted({reps[c] for c in (customers if customers is not None else reps)})
+    if employee:
+        mine = {c for c, e in reps.items() if e == employee}
+        customers = mine if customers is None else customers & mine
+    rows, totals, aging = debts(customers, reps)
+    names = rep_names(all_reps)
+    rep_filter = sorted(({"employee": e, "name": names.get(e) or e} for e in all_reps), key=lambda x: x["name"].lower())
+    return {"currency": currency(), "totals": totals, "aging": aging, "customers": rows,
+            "reps": rep_filter if len(rep_filter) > 1 else []}
+
+
+def debt_summary(user=None):
+    """Overdue figures for the Today screen card."""
+    customers, reps = visible_customers(user)
+    _rows, totals, _aging = debts(customers, reps)
+    return {"overdue": totals["overdue"], "customers": totals["overdue_customers"], "due_soon": totals["due_soon"],
+            "currency": currency()}
 
 
 @frappe.whitelist()
@@ -137,9 +181,9 @@ def get_customer_debt(customer):
         frappe.throw(_("Customer {0} not found").format(customer))
 
     day = getdate(today())
-    invoices = _open_invoices({customer})
+    invoices = open_invoices({customer})
     for inv in invoices:
-        inv["days_overdue"] = _days_overdue(inv.due_date, day) if inv.outstanding_amount > 0 else 0
+        inv["days_overdue"] = days_overdue(inv.due_date, day) if inv.outstanding_amount > 0 else 0
     unallocated = _unallocated_payments({customer})
     payments = frappe.get_all("Payment Entry",
                               filters={"docstatus": 1, "party_type": "Customer", "party": customer,
@@ -151,10 +195,10 @@ def get_customer_debt(customer):
     unalloc = sum(flt(p.unallocated_amount) for p in unallocated)
     employee = reps.get(customer)
     return {
-        "currency": _currency(),
+        "currency": currency(),
         "customer": customer,
         "customer_name": frappe.db.get_value("Customer", customer, "customer_name") or customer,
-        "rep_name": _rep_names([employee]).get(employee) or "",
+        "rep_name": rep_names([employee]).get(employee) or "",
         "outstanding": outstanding,
         "overdue": sum(flt(i.outstanding_amount) for i in invoices if i.days_overdue),
         "unallocated": unalloc,
@@ -165,6 +209,6 @@ def get_customer_debt(customer):
     }
 
 
-def _currency():
+def currency():
     company = frappe.defaults.get_global_default("company")
     return (company and frappe.get_cached_value("Company", company, "default_currency")) or ""

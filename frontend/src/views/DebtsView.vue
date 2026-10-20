@@ -1,23 +1,36 @@
 <script setup>
-import { ref, computed, watch, onActivated, onMounted } from "vue"
+import { ref, computed, watch, onActivated } from "vue"
+import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { initials, money } from "../ui"
+import { fmt, initials, money } from "../ui"
 import Icon from "../components/Icon.vue"
 
 defineOptions({ name: "DebtsView" })
+const route = useRoute()
+const router = useRouter()
 const data = ref(null)
 const error = ref("")
 const loading = ref(false)
 const text = ref("")
 const rep = ref("")
 const overdueOnly = ref(false)
-const team = ref([])
+const sortBy = ref("amount")  // amount | late
+const team = computed(() => (data.value && data.value.reps) || [])
 
 const rows = computed(() => {
   if (!data.value) return []
   const q = text.value.trim().toLowerCase()
-  return data.value.customers.filter((c) => (!q || c.customer_name.toLowerCase().includes(q))
+  const out = data.value.customers.filter((c) => (!q || c.customer_name.toLowerCase().includes(q))
     && (!overdueOnly.value || c.overdue > 0))
+  if (sortBy.value === "late") out.sort((a, b) => b.max_days - a.max_days || b.overdue - a.overdue)
+  return out
+})
+// aging bar: share of the overdue amount per bucket
+const AGING_COLOR = { "1-30": "bg-amber-300", "31-60": "bg-amber-500", "61-90": "bg-red-400", "90+": "bg-red-600" }
+const aging = computed(() => {
+  if (!data.value || !data.value.totals.overdue) return []
+  return data.value.aging.filter((a) => a.amount > 0)
+    .map((a) => ({ ...a, pct: (a.amount / data.value.totals.overdue) * 100, color: AGING_COLOR[a.label] }))
 })
 
 async function load() {
@@ -28,10 +41,14 @@ async function load() {
   finally { loading.value = false }
 }
 watch(rep, load)
-// kept alive: coming back from a customer refreshes in place
-onActivated(load)
-onMounted(async () => {
-  try { team.value = await call("kayanick_crm.mobile.get_team") } catch (e) {}
+// kept alive: coming back from a customer refreshes in place. ?overdue=1 comes from the Today card
+onActivated(() => {
+  if (route.query.overdue) {
+    overdueOnly.value = true
+    sortBy.value = "late"
+    router.replace({ query: {} })
+  }
+  load()
 })
 </script>
 
@@ -55,8 +72,22 @@ onMounted(async () => {
             <p class="font-semibold">{{ money(data.totals.overdue) }}</p>
           </div>
           <div class="rounded-lg bg-white/10 px-3 py-2">
-            <p class="text-xs text-brand-100">Customers</p>
-            <p class="font-semibold">{{ data.totals.customers }}</p>
+            <p class="text-xs text-brand-100">Due in 7 days</p>
+            <p class="font-semibold">{{ money(data.totals.due_soon) }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="aging.length" class="card p-3">
+        <p class="mb-2 text-xs font-medium text-gray-500">Overdue by age (days late)</p>
+        <div class="flex h-2.5 overflow-hidden rounded-full bg-gray-100">
+          <div v-for="a in aging" :key="a.label" :class="a.color" :style="{ width: a.pct + '%' }"></div>
+        </div>
+        <div class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+          <div v-for="a in aging" :key="a.label" class="flex items-center gap-1.5">
+            <span class="h-2 w-2 rounded-full" :class="a.color"></span>
+            <span class="text-gray-500">{{ a.label }}</span>
+            <span class="ml-auto font-medium">{{ money(a.amount) }}</span>
           </div>
         </div>
       </div>
@@ -67,11 +98,12 @@ onMounted(async () => {
           <input v-model="text" type="search" placeholder="Customer" class="input pl-9" dir="auto" />
         </div>
         <div class="flex gap-2">
-          <select v-if="team.length" v-model="rep" class="input flex-1">
+          <select v-if="team.length" v-model="rep" class="input min-w-0 flex-1">
             <option value="">Everyone</option>
-            <option v-for="r in team" :key="r.user" :value="r.user">{{ r.name }}</option>
+            <option v-for="r in team" :key="r.employee" :value="r.employee">{{ r.name }}</option>
           </select>
-          <button type="button" class="chip h-10" :class="{ 'chip-on': overdueOnly }" @click="overdueOnly = !overdueOnly">Overdue only</button>
+          <button type="button" class="chip h-10" :class="{ 'chip-on': overdueOnly }" @click="overdueOnly = !overdueOnly">Overdue</button>
+          <button type="button" class="chip h-10" :class="{ 'chip-on': sortBy === 'late' }" @click="sortBy = sortBy === 'late' ? 'amount' : 'late'">Most late</button>
         </div>
       </div>
 
@@ -92,6 +124,7 @@ onMounted(async () => {
             <div class="flex flex-col items-end gap-1">
               <span class="text-sm font-semibold" :class="c.balance < 0 ? 'text-green-700' : ''">{{ money(c.balance) }}</span>
               <span v-if="c.max_days" class="badge" :class="c.max_days > 90 ? 'badge-red' : 'badge-amber'">{{ c.max_days }}d overdue</span>
+              <span v-else-if="c.next_due" class="badge badge-blue">Due {{ fmt(c.next_due) }}</span>
             </div>
             <Icon name="chevron-right" :size="16" class="text-gray-300" />
           </router-link>

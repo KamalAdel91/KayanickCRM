@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { fmt, initials, outcomeBadge, fmtTime } from "../ui"
+import { fmt, initials, money, outcomeBadge, fmtTime } from "../ui"
 import Icon from "../components/Icon.vue"
 
 const route = useRoute()
@@ -122,6 +122,18 @@ onMounted(() => {
           <p class="text-xs text-gray-500">Cases due</p>
         </router-link>
       </div>
+
+      <router-link v-if="data && data.debt && (data.debt.overdue || data.debt.due_soon)" :to="{ name: 'debts', query: data.debt.overdue ? { overdue: 1 } : {} }" class="card flex items-center gap-3 p-3">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" :class="data.debt.overdue ? 'bg-red-50 text-red-600' : 'bg-brand-50 text-brand-600'"><Icon name="wallet" :size="17" /></span>
+        <div class="min-w-0 flex-1">
+          <p v-if="data.debt.overdue" class="font-semibold text-red-600">{{ money(data.debt.overdue) }} {{ data.debt.currency }} overdue</p>
+          <p v-else class="font-semibold">{{ money(data.debt.due_soon) }} {{ data.debt.currency }} due this week</p>
+          <p class="truncate text-xs text-gray-500">
+            {{ data.debt.overdue ? data.debt.customers + (data.debt.customers === 1 ? " customer to collect from" : " customers to collect from") : "Nothing overdue" }}<template v-if="data.debt.overdue && data.debt.due_soon"> · {{ money(data.debt.due_soon) }} due this week</template>
+          </p>
+        </div>
+        <Icon name="chevron-right" :size="16" class="text-gray-300" />
+      </router-link>
 
       <template v-if="loading && !data">
         <div v-for="i in 3" :key="i" class="card h-20 animate-pulse"></div>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
 import { fmt, money } from "../ui"
@@ -9,6 +9,33 @@ const route = useRoute()
 const router = useRouter()
 const d = ref(null)
 const error = ref("")
+const toast = ref("")
+
+// a payment reminder the rep sends to the customer (WhatsApp or any app), in Arabic, listing the overdue invoices
+const reminder = computed(() => {
+  if (!d.value) return ""
+  const late = d.value.invoices.filter((i) => i.days_overdue)
+  if (!late.length) return ""
+  const cur = d.value.currency === "EGP" ? "جنيه" : d.value.currency
+  const lines = late.map((i) => `• فاتورة ${i.name} بتاريخ ${i.posting_date}: ${money(i.outstanding_amount)} ${cur} (متأخرة ${i.days_overdue} يوم)`)
+  return [`السادة ${d.value.customer_name}،`, "تحية طيبة، نود تذكير سيادتكم بالمستحقات المتأخرة:", ...lines,
+    `الإجمالي المتأخر: ${money(d.value.overdue)} ${cur}`, "", "شكرًا لتعاونكم",
+    [d.value.rep_name, "Kayanick"].filter(Boolean).join(" - ")].join("\n")
+})
+async function shareReminder() {
+  const text = reminder.value
+  if (navigator.share) {
+    try { await navigator.share({ text }); return } catch (e) { if (e.name === "AbortError") return }
+  }
+  window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank")
+}
+async function copyReminder() {
+  try {
+    await navigator.clipboard.writeText(reminder.value)
+    toast.value = "Reminder copied"
+    setTimeout(() => (toast.value = ""), 2500)
+  } catch (e) { error.value = "Couldn't copy" }
+}
 
 // invoices go back past this year: show the year when it isn't this one
 function day(v) {
@@ -59,7 +86,12 @@ onMounted(async () => {
             </div>
           </div>
           <p v-if="d.unallocated" class="mt-2 text-xs text-gray-500">Less {{ money(d.unallocated) }} paid but not yet matched to an invoice</p>
+          <div v-if="reminder" class="mt-3 flex gap-2">
+            <button type="button" class="btn btn-primary flex-1" @click="shareReminder"><Icon name="bell" :size="15" />Send payment reminder</button>
+            <button type="button" class="btn btn-subtle w-9 px-0" aria-label="Copy reminder" @click="copyReminder"><Icon name="clipboard" :size="16" /></button>
+          </div>
         </div>
+        <div v-if="toast" class="toast"><Icon name="check" :size="16" />{{ toast }}</div>
 
         <section>
           <p class="section-label"><Icon name="file-text" :size="14" />Open invoices</p>

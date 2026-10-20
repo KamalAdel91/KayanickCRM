@@ -239,8 +239,10 @@ def get_today():
                                            pluck="name", limit_page_length=100000)),
         "cases_due": sum(1 for c in cases if getdate(c.case_date) <= day),
     }
+    from kayanick_crm.debt_api import debt_summary
+
     return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "cases": cases, "recent": recent,
-            "unread": unread(user)}
+            "unread": unread(user), "debt": debt_summary(user)}
 
 
 @frappe.whitelist()
