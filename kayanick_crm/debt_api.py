@@ -209,6 +209,76 @@ def get_customer_debt(customer):
     }
 
 
+PRINT_FORMAT = "Kayanick Sales Invoice Template"  # falls back to the Sales Invoice default when missing
+
+
+def _invoice(name):
+    """A submitted invoice of a customer the user sees."""
+    _check_app_user()
+    row = frappe.db.get_value("Sales Invoice", name, ["customer", "docstatus"], as_dict=True)
+    customers, _reps = visible_customers()
+    if not row or row.docstatus != 1 or (customers is not None and row.customer not in customers):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    return frappe.get_doc("Sales Invoice", name)
+
+
+def _settled_by(name):
+    """What paid this invoice down: payment entries, journal entries and credit notes, oldest first."""
+    rows = frappe.db.sql("""
+        select pe.name, 'Payment' kind, pe.posting_date, ref.allocated_amount amount, pe.mode_of_payment
+        from `tabPayment Entry Reference` ref join `tabPayment Entry` pe on pe.name = ref.parent
+        where ref.reference_doctype = 'Sales Invoice' and ref.reference_name = %(name)s and pe.docstatus = 1
+        union all
+        select je.name, 'Journal Entry', je.posting_date, jea.credit_in_account_currency - jea.debit_in_account_currency, null
+        from `tabJournal Entry Account` jea join `tabJournal Entry` je on je.name = jea.parent
+        where jea.reference_type = 'Sales Invoice' and jea.reference_name = %(name)s and je.docstatus = 1
+        union all
+        select name, 'Credit note', posting_date, -grand_total, null
+        from `tabSales Invoice` where return_against = %(name)s and docstatus = 1
+        order by posting_date asc""", {"name": name}, as_dict=True)
+    return [r for r in rows if flt(r.amount)]
+
+
+@frappe.whitelist()
+def get_invoice(name):
+    """One invoice: items, taxes, payment schedule and what was paid against it."""
+    doc = _invoice(name)
+    day = getdate(today())
+    outstanding = flt(doc.outstanding_amount)
+    return {
+        "name": doc.name, "customer": doc.customer, "customer_name": doc.customer_name, "currency": doc.currency,
+        "posting_date": doc.posting_date, "due_date": doc.due_date, "is_return": doc.is_return,
+        "return_against": doc.return_against, "po_no": doc.po_no, "status": doc.status,
+        "subject": doc.get("custom_subject") or "", "notes": doc.get("custom_notes") or doc.remarks or "",
+        "days_overdue": days_overdue(doc.due_date, day) if outstanding > 0 else 0,
+        "total": doc.total, "discount_amount": doc.discount_amount, "grand_total": doc.grand_total,
+        "outstanding": outstanding, "paid": flt(doc.grand_total) - outstanding,
+        "items": [{"item_code": i.item_code, "item_name": i.item_name, "qty": i.qty, "uom": i.uom, "rate": i.rate,
+                   "amount": i.amount, "discount_percentage": i.discount_percentage} for i in doc.items],
+        "taxes": [{"description": t.description, "rate": t.rate, "amount": t.tax_amount,
+                   "included": t.included_in_print_rate} for t in doc.taxes if flt(t.tax_amount)],
+        "schedule": [{"due_date": p.due_date, "amount": p.payment_amount, "outstanding": p.outstanding}
+                     for p in doc.payment_schedule] if len(doc.payment_schedule) > 1 else [],
+        "settled_by": _settled_by(doc.name),
+    }
+
+
+@frappe.whitelist()
+def invoice_pdf(name):
+    """The printed invoice as a PDF. Reps can't print Sales Invoices themselves, so the print permission check is
+    skipped here, after _invoice checked the customer is his."""
+    doc = _invoice(name)
+    print_format = PRINT_FORMAT if frappe.db.exists("Print Format", {"name": PRINT_FORMAT, "disabled": 0}) else None
+    frappe.flags.ignore_print_permissions = True
+    try:
+        pdf = frappe.get_print("Sales Invoice", doc.name, print_format=print_format, doc=doc, as_pdf=True)
+    finally:
+        frappe.flags.ignore_print_permissions = False
+    frappe.local.response.filename = doc.name + ".pdf"
+    frappe.local.response.filecontent = pdf
+    frappe.local.response.type = "pdf"
+
+
 def currency():
     company = frappe.defaults.get_global_default("company")
     return (company and frappe.get_cached_value("Company", company, "default_currency")) or ""

@@ -97,7 +97,7 @@ onMounted(async () => {
           <p class="section-label"><Icon name="file-text" :size="14" />Open invoices</p>
           <div v-if="!d.invoices.length" class="empty"><Icon name="check" :size="24" /><p>No open invoices</p></div>
           <div v-else class="card divide-y divide-gray-100">
-            <div v-for="i in d.invoices" :key="i.name" class="flex items-center gap-3 px-4 py-3">
+            <router-link v-for="i in d.invoices" :key="i.name" :to="{ name: 'invoice', params: { name: i.name } }" class="flex items-center gap-3 px-4 py-3 active:bg-gray-50">
               <div class="min-w-0 flex-1">
                 <p class="truncate font-medium">{{ i.name }}<span v-if="i.is_return" class="ml-1 text-xs text-gray-400">credit note</span></p>
                 <p class="truncate text-xs text-gray-500">{{ day(i.posting_date) }} · due {{ day(i.due_date) }} · of {{ money(i.grand_total) }}</p>
@@ -107,7 +107,8 @@ onMounted(async () => {
                 <span v-if="i.days_overdue" class="badge" :class="i.days_overdue > 90 ? 'badge-red' : 'badge-amber'">{{ i.days_overdue }}d overdue</span>
                 <span v-else-if="i.outstanding_amount > 0" class="badge badge-gray">Not due</span>
               </div>
-            </div>
+              <Icon name="chevron-right" :size="16" class="text-gray-300" />
+            </router-link>
           </div>
         </section>
 

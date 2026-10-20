@@ -29,7 +29,7 @@ const showNav = computed(() => !["visit", "case", "notifications", "change-passw
         <router-link to="/cases" class="tab" :class="{ 'tab-on': ['cases', 'case-detail'].includes(route.name) }">
           <Icon name="cart" :size="21" /><span>Cases</span>
         </router-link>
-        <router-link to="/debts" class="tab" :class="{ 'tab-on': ['debts', 'debt'].includes(route.name) }">
+        <router-link to="/debts" class="tab" :class="{ 'tab-on': ['debts', 'debt', 'invoice'].includes(route.name) }">
           <Icon name="wallet" :size="21" /><span>Debt</span>
         </router-link>
         <router-link to="/search" class="tab" :class="{ 'tab-on': ['search', 'hospital', 'doctor'].includes(route.name) }">

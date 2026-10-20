@@ -18,6 +18,7 @@ import ChangePassword from "./views/ChangePasswordView.vue"
 import ResetPassword from "./views/ResetPasswordView.vue"
 import Debts from "./views/DebtsView.vue"
 import Debt from "./views/DebtView.vue"
+import Invoice from "./views/InvoiceView.vue"
 
 const router = createRouter({
   history: createWebHistory("/KayanickCRM"),
@@ -40,6 +41,7 @@ const router = createRouter({
     { path: "/doctor/:name", name: "doctor", component: Profile },
     { path: "/debts", name: "debts", component: Debts },
     { path: "/debts/:customer", name: "debt", component: Debt },
+    { path: "/invoice/:name", name: "invoice", component: Invoice },
     { path: "/account", name: "account", component: Account },
     { path: "/change-password", name: "change-password", component: ChangePassword },
     { path: "/admin/reset-password", name: "reset-password", component: ResetPassword },
