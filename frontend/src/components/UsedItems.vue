@@ -1,13 +1,27 @@
 <script setup>
-import { ref } from "vue"
+import { ref, computed } from "vue"
 import { call } from "../api"
+import { price, lineTotal, itemsTotal } from "../ui"
 import Icon from "./Icon.vue"
 import PickerSheet from "./PickerSheet.vue"
 
-// used: "" | "Yes" | "No"; items: [{ item_code, item_name, uom, qty }]. Info only, no stock effect.
+// used: "" | "Yes" | "No"; items: [{ item_code, item_name, uom, qty, rate }]; invoiceType: "" | "System" | "Cash";
+// customer / customerName: who the Sales Order of these products is for. Saving the case makes that Draft order
+// for accounts; stock is not affected.
 const used = defineModel("used", { type: String, default: "" })
 const items = defineModel("items", { type: Array, default: () => [] })
+const invoiceType = defineModel("invoiceType", { type: String, default: "" })
+const customer = defineModel("customer", { type: String, default: "" })
+const customerName = defineModel("customerName", { type: String, default: "" })
 const picking = ref(false)
+const pickingCustomer = ref(false)
+
+async function fetchCustomers(text) {
+  const rows = await call("kayanick_crm.orders_api.search_customers", { text })
+  return rows.map((r) => ({ value: r.name, label: r.customer_name || r.name, sub: r.customer_name !== r.name ? r.name : "" }))
+}
+function pickCustomer(r) { customer.value = r.value; customerName.value = r.label }
+const total = computed(() => itemsTotal(items.value))
 
 async function fetchItems(text) {
   const rows = await call("kayanick_crm.case_api.search_items", { text })
@@ -15,7 +29,7 @@ async function fetchItems(text) {
 }
 function pick(r) {
   if (items.value.some((x) => x.item_code === r.value)) return
-  items.value.push({ item_code: r.value, item_name: r.raw.item_name || r.value, uom: r.raw.stock_uom, qty: 1 })
+  items.value.push({ item_code: r.value, item_name: r.raw.item_name || r.value, uom: r.raw.stock_uom, qty: 1, rate: null })
 }
 function unpick(r) { items.value = items.value.filter((x) => x.item_code !== r.value) }
 function remove(i) { items.value.splice(i, 1) }
@@ -46,14 +60,39 @@ function step(row, d) { row.qty = Math.max(1, (Number(row.qty) || 0) + d) }
         <div class="mt-2 flex items-center justify-end gap-2">
           <span v-if="row.uom" class="mr-auto text-xs text-gray-500">{{ row.uom }}</span>
           <button type="button" class="btn btn-subtle h-8 w-8 px-0" aria-label="Less" @click="step(row, -1)">−</button>
-          <input v-model.number="row.qty" type="number" inputmode="decimal" min="0" step="any" class="input h-8 w-16 px-1 text-center" />
+          <input v-model.number="row.qty" type="number" inputmode="decimal" min="0" step="any" class="input h-8 w-16 px-1 text-center" aria-label="Quantity" />
           <button type="button" class="btn btn-subtle h-8 w-8 px-0" aria-label="More" @click="step(row, 1)"><Icon name="plus" :size="14" /></button>
+        </div>
+        <div class="mt-2 flex items-center gap-2">
+          <label class="text-xs text-gray-500" :for="'rate-' + i">Price<span class="text-red-500"> *</span></label>
+          <input :id="'rate-' + i" v-model.number="row.rate" type="number" inputmode="decimal" min="0" step="any" placeholder="0" class="input h-8 w-28 px-2 text-right" />
+          <span class="ml-auto text-sm font-medium">{{ price(lineTotal(row)) }}</span>
         </div>
       </div>
       <button type="button" class="btn btn-subtle h-10 w-full" @click="picking = true"><Icon name="plus" :size="15" />Add item</button>
-      <p class="text-xs text-gray-400">For the record only — stock is not affected.</p>
+      <div v-if="items.length" class="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-sm">
+        <span class="text-gray-500">Total</span><span class="font-semibold">{{ price(total) }}</span>
+      </div>
+      <div>
+        <p class="label">Invoice type<span class="text-red-500"> *</span></p>
+        <div class="grid grid-cols-2 gap-2">
+          <button v-for="o in ['System', 'Cash']" :key="o" type="button" class="btn h-10 border"
+            :class="invoiceType === o ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-gray-200 bg-white'" @click="invoiceType = o">
+            <Icon v-if="invoiceType === o" name="check" :size="14" />{{ o }}
+          </button>
+        </div>
+      </div>
+      <div>
+        <p class="label">Customer<span class="text-red-500"> *</span></p>
+        <button type="button" class="input flex items-center text-left" @click="pickingCustomer = true">
+          <span class="min-w-0 flex-1 truncate" :class="customer ? '' : 'text-gray-400'" dir="auto">{{ customerName || customer || "Choose the customer" }}</span>
+          <Icon name="chevron-down" :size="16" class="text-gray-400" />
+        </button>
+      </div>
+      <p class="text-xs text-gray-400">Saving makes a draft Sales Order with these products for accounts. Stock is not affected.</p>
     </template>
 
+    <PickerSheet v-model:open="pickingCustomer" title="Customer" placeholder="Search customers" :fetcher="fetchCustomers" @pick="pickCustomer" />
     <PickerSheet v-model:open="picking" title="Used items" placeholder="Search items" multi
       :fetcher="fetchItems" :selected="items.map((x) => x.item_code)" @pick="pick" @unpick="unpick" />
   </div>

@@ -16,3 +16,4 @@ kayanick_crm.patches.v1.planned_cases_open
 kayanick_crm.patches.v2.employee_model
 kayanick_crm.patches.v2.drop_stale_module_blocks
 kayanick_crm.patches.v2.letter_head_font_import
+kayanick_crm.patches.v3.access_rules

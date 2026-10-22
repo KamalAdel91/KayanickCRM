@@ -130,6 +130,39 @@
    "mandatory_depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'"
   },
   {
+   "fieldname": "invoice_type",
+   "fieldtype": "Select",
+   "label": "Invoice Type",
+   "options": "\nSystem\nCash",
+   "depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'",
+   "in_standard_filter": 1,
+   "description": "The invoice type of the Sales Order made from the used products"
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "Total",
+   "read_only": 1,
+   "depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer",
+   "depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'",
+   "description": "The customer of the Sales Order made from the used products"
+  },
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "Sales Order",
+   "options": "Sales Order",
+   "read_only": 1,
+   "no_copy": 1,
+   "depends_on": "eval:doc.sales_order"
+  },
+  {
    "fieldname": "attended_notes",
    "fieldtype": "Small Text",
    "label": "Attendance Notes",
@@ -168,6 +201,10 @@
   "sb_used",
   "used_products",
   "used_items",
+  "invoice_type",
+  "total_amount",
+  "customer",
+  "sales_order",
   "attended_notes",
   "sb_log",
   "log"
@@ -207,6 +244,13 @@
   },
   {
    "role": "KC Viewer",
+   "read": 1,
+   "report": 1,
+   "print": 1,
+   "export": 1
+  },
+  {
+   "role": "KC Accounts",
    "read": 1,
    "report": 1,
    "print": 1,

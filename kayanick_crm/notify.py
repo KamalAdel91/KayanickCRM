@@ -1,19 +1,38 @@
 """Notifications: in-app (Notification Log, also shows in the Desk bell) + phone push through
-Frappe Cloud's push relay when "Enable Push Notification Relay" is on."""
+Frappe Cloud's push relay when "Enable Push Notification Relay" is on.
+
+Who gets what. "Sees" is the app's one rule (perms.py). Whoever caused the event is left out, and a user who turned
+notifications off (Notification Settings) gets none.
+
+    Positive visit / order expected   a visit is logged               everyone who sees the visit
+    New case (planned or attended)    a case is added                 everyone who sees the case
+    Case cancelled                    a planned case is cancelled     everyone who sees the case
+    Payment received / cancelled      a Payment Entry from a          everyone who sees the customer
+                                      customer is submitted / cancelled
+    New order                         a rep places a Sales Order,     everyone who sees the rep, and KC Accounts
+                                      or a case with used products
+                                      makes one
+    Order approved / cancelled        KC Accounts submit / cancel it  everyone who sees the rep
+    Invoice overdue                   daily at 8:00                   everyone who sees the customer
+    Good morning                      daily at 8:00                   each rep: their follow-ups and planned cases
+    Overdue debt this week            Sundays at 8:00                 each app user: the customers they see
+"""
 from urllib.parse import quote
 
 import frappe
-from frappe.utils import get_fullname, get_url, getdate, today
+from frappe.utils import add_days, get_fullname, get_url, getdate, today
+
+from kayanick_crm.perms import accounts_users, app_users, scope
 
 PUSH_PROJECT = "hrms"  # the project Frappe HR uses on the relay (custom names are rejected)
 APP_ROUTE = "/KayanickCRM"
-ROUTES = {"KC Visit": "/visits/", "KC Case": "/case/", "Customer": "/debts/"}
+ROUTES = {"KC Visit": "/visits/", "KC Case": "/case/", "Customer": "/debts/", "Sales Order": "/orders/"}
 REMINDER_PREFIX = "Good morning! You have"
 DEBT_DIGEST_PREFIX = "Overdue debt:"
 
 
 def _ours(user, **extra):
-    """Only this app's notifications: linked to a visit/case, or the daily reminder."""
+    """Only this app's notifications: linked to a visit, case or customer, or the morning / weekly digests."""
     filters = {"for_user": user, **extra}
     or_filters = [["document_type", "in", list(ROUTES)], ["subject", "like", REMINDER_PREFIX + "%"],
                   ["subject", "like", DEBT_DIGEST_PREFIX + "%"]]
@@ -36,7 +55,9 @@ def _route(doctype, name, subject=""):
 
 def notify(user, subject, doctype=None, name=None, from_user=None, title=None, body=None):
     """subject: the in-app line; title/body: what the phone shows (defaults to the app name + subject)."""
-    if not user or user in ("Guest", "Administrator"):
+    from frappe.desk.doctype.notification_settings.notification_settings import is_notifications_enabled
+
+    if not user or user in ("Guest", "Administrator") or not is_notifications_enabled(user):
         return
     frappe.get_doc({
         "doctype": "Notification Log", "for_user": user, "type": "Alert", "subject": subject,
@@ -73,40 +94,37 @@ def test_push():
     return _push(frappe.session.user, "Push is working", APP_ROUTE + "/notifications", title="🔔 Test notification")
 
 
-def managers_of_employee(employee):
-    """Users of everyone above this employee in Reports To (his manager, the manager's manager, ...)."""
-    if not employee:
-        return set()
-    node = frappe.db.get_value("Employee", employee, ["lft", "rgt", "user_id"], as_dict=True)
-    if not node or not node.lft:
-        return set()
-    users = frappe.get_all("Employee", filters={"lft": ["<", node.lft], "rgt": [">", node.rgt], "status": "Active",
-                                                "user_id": ["is", "set"]}, pluck="user_id")
-    out = {u for u in users if u}
-    out.discard(node.user_id)
-    return out
+def readers(doctype, name):
+    """App users who can open this record under Frappe's permissions (roles, User Permissions, shares)."""
+    doc = frappe.get_doc(doctype, name)
+    return {u for u in app_users() if frappe.has_permission(doctype, "read", doc=doc, user=u)}
 
 
-def managers_of(user):
-    from kayanick_crm.perms import employee_of
+def debt_viewers():
+    """{user: the customers whose debt the user sees in the app, None for all} (debt_api.visible_customers)."""
+    from kayanick_crm.debt_api import visible_customers
 
-    out = managers_of_employee(employee_of(user))
-    out.discard(user)
-    return out
+    return {u: visible_customers(u)[0] for u in app_users()}
+
+
+def customer_readers(customer, viewers=None):
+    """App users who see this customer's debt in the app."""
+    viewers = debt_viewers() if viewers is None else viewers
+    return {u for u, customers in viewers.items() if customers is None or customer in customers}
 
 
 # ---- document events (queued, so saving stays fast) ----
 
 def visit_created(doc, method=None):
     if doc.visit_outcome == "Positive" or doc.order_expected:
-        frappe.enqueue("kayanick_crm.notify._visit_to_managers", name=doc.name, enqueue_after_commit=True)
+        frappe.enqueue("kayanick_crm.notify._visit_to_readers", name=doc.name, enqueue_after_commit=True)
 
 
 def case_created(doc, method=None):
-    frappe.enqueue("kayanick_crm.notify._case_to_managers", name=doc.name, enqueue_after_commit=True)
+    frappe.enqueue("kayanick_crm.notify._case_to_readers", name=doc.name, enqueue_after_commit=True)
 
 
-def _visit_to_managers(name):
+def _visit_to_readers(name):
     from kayanick_crm.mobile import doctors_text
     from kayanick_crm.perms import user_of
 
@@ -117,8 +135,9 @@ def _visit_to_managers(name):
     msg = "{0} logged {1} at {2}".format(rep, what, v.hospital)
     title = "🛒 Order expected" if v.order_expected else "🟢 Positive visit"
     body = " · ".join(x for x in (rep, v.hospital, doctor) if x)
-    for m in managers_of_employee(v.employee):
-        notify(m, msg, "KC Visit", v.name, user_of(v.employee) or v.owner, title=title, body=body)
+    by = user_of(v.employee) or v.owner
+    for u in readers("KC Visit", v.name) - {by, v.owner}:
+        notify(u, msg, "KC Visit", v.name, by, title=title, body=body)
 
 
 def _hm(t):
@@ -130,7 +149,7 @@ def _hm(t):
         return str(t)[:5]
 
 
-def _case_to_managers(name):
+def _case_to_readers(name):
     from kayanick_crm.mobile import doctors_text
 
     c = frappe.get_doc("KC Case", name)
@@ -142,11 +161,11 @@ def _case_to_managers(name):
     msg = "{0} added a case{1}: {2}{3}".format(rep, when, c.hospital, " / " + doctor if doctor else "")
     title = "🩺 New case" if attended else "📅 Planned case · " + getdate(c.case_date).strftime("%d %b") + at
     body = " · ".join(x for x in (rep, c.hospital, doctor) if x)
-    for m in managers_of(c.owner):
-        notify(m, msg, "KC Case", c.name, c.owner, title=title, body=body)
+    for u in readers("KC Case", c.name) - {c.owner}:
+        notify(u, msg, "KC Case", c.name, c.owner, title=title, body=body)
 
 
-def _case_cancelled_to_managers(name):
+def _case_cancelled_to_readers(name):
     from kayanick_crm.mobile import doctors_text
 
     c = frappe.get_doc("KC Case", name)
@@ -159,8 +178,14 @@ def _case_cancelled_to_managers(name):
     msg = "{0} cancelled a case: {1}{2}".format(by, c.hospital, " / " + doctor if doctor else "")
     title = "❌ Case cancelled · " + getdate(c.case_date).strftime("%d %b")
     body = " · ".join(x for x in (by, c.hospital, row.reason) if x)
-    for m in (managers_of(c.owner) | {c.owner}) - {row.done_by}:
-        notify(m, msg, "KC Case", c.name, row.done_by, title=title, body=body)
+    for u in readers("KC Case", c.name) - {row.done_by}:
+        notify(u, msg, "KC Case", c.name, row.done_by, title=title, body=body)
+
+
+# the previous release queued jobs under these names: kept so a job waiting during a deploy still runs
+_visit_to_managers = _visit_to_readers
+_case_to_managers = _case_to_readers
+_case_cancelled_to_managers = _case_cancelled_to_readers
 
 
 # ---- daily reminder (scheduler) ----
@@ -217,59 +242,118 @@ def _money(amount, currency):
 
 def payment_received(doc, method=None):
     if doc.party_type == "Customer" and doc.payment_type == "Receive":
-        frappe.enqueue("kayanick_crm.notify._payment_to_rep", name=doc.name, enqueue_after_commit=True)
+        frappe.enqueue("kayanick_crm.notify._payment_to_readers", name=doc.name, enqueue_after_commit=True)
 
 
-def _payment_to_rep(name):
-    """The customer's rep (and his managers) hear about a payment received."""
-    from kayanick_crm.debt_api import customer_reps
-    from kayanick_crm.perms import user_of
+def payment_cancelled(doc, method=None):
+    if doc.party_type == "Customer" and doc.payment_type == "Receive":
+        frappe.enqueue("kayanick_crm.notify._payment_to_readers", name=doc.name, cancelled=True,
+                       enqueue_after_commit=True)
 
+
+def _payment_to_readers(name, cancelled=False):
+    """Everyone who sees the customer's debt in the app hears about a payment received, or cancelled."""
     pe = frappe.get_doc("Payment Entry", name)
-    employee = customer_reps().get(pe.party)
-    if not employee:
-        return
     customer = pe.party_name or pe.party
     amount = _money(pe.paid_amount, pe.paid_from_account_currency)
-    for u in {user_of(employee)} | managers_of_employee(employee):
-        notify(u, "Payment received from {0}: {1}".format(customer, amount), "Customer", pe.party,
-               title="💵 Payment received", body="{0} · {1}".format(customer, amount))
+    what = "Payment cancelled" if cancelled else "Payment received"
+    title = "↩️ Payment cancelled" if cancelled else "💵 Payment received"
+    for u in customer_readers(pe.party) - {pe.modified_by}:
+        notify(u, "{0} from {1}: {2}".format(what, customer, amount), "Customer", pe.party, pe.modified_by,
+               title=title, body="{0} · {1}".format(customer, amount))
+
+
+_payment_to_rep = _payment_to_readers  # the previous release's name, for jobs queued during a deploy
+
+# ---- orders ----
+
+ORDER_EVENTS = {  # event: (title, what happened)
+    "new": ("📦 New order", "{rep} placed an order for {customer}: {amount}"),
+    "case": ("📦 New order from a case", "{rep}'s case {case}: order for {customer}: {amount}"),
+    "approved": ("✅ Order approved", "Order {name} for {customer} was approved: {amount}"),
+    "cancelled": ("❌ Order cancelled", "Order {name} for {customer} was cancelled"),
+}
+
+
+def order_created(doc, method=None):
+    if doc.get("kc_employee"):
+        frappe.enqueue("kayanick_crm.notify._order_to_readers", name=doc.name, event="new", enqueue_after_commit=True)
+
+
+def order_submitted(doc, method=None):
+    if doc.get("kc_employee"):
+        frappe.enqueue("kayanick_crm.notify._order_to_readers", name=doc.name, event="approved",
+                       enqueue_after_commit=True)
+
+
+def order_cancelled(doc, method=None):
+    if doc.get("kc_employee"):
+        frappe.enqueue("kayanick_crm.notify._order_to_readers", name=doc.name, event="cancelled",
+                       enqueue_after_commit=True)
+
+
+def order_readers(employee):
+    """App users who see the orders of this rep."""
+    return {u for u in app_users() if (s := scope(u)) is None or employee in s}
+
+
+def _order_to_readers(name, event="new"):
+    so = frappe.get_doc("Sales Order", name)
+    rep = frappe.db.get_value("Employee", so.kc_employee, "employee_name") or so.kc_employee
+    amount = _money(so.grand_total, so.currency)
+    if event == "new" and so.kc_source == "Case":
+        event = "case"
+    title, what = ORDER_EVENTS[event]
+    msg = what.format(rep=rep, customer=so.customer_name or so.customer, amount=amount, name=so.name, case=so.kc_case)
+    users = order_readers(so.kc_employee)
+    actor = so.modified_by
+    if event in ("new", "case"):
+        users |= accounts_users()
+        actor = so.owner
+    for u in users - {actor}:
+        notify(u, msg, "Sales Order", so.name, actor, title=title,
+               body="{0} · {1} · {2}".format(so.customer_name or so.customer, rep, amount))
+
+
+LAST_DEBT_ALERTS = "kayanick_crm_debt_alerts_last_run"  # DefaultValue: the day debt_alerts last ran
+CATCH_UP_DAYS = 7  # after the scheduler was off, invoices that fell overdue up to this many days ago are announced
 
 
 def debt_alerts():
-    """Daily: invoices that became overdue today, to the customer's rep and his managers (one line per customer).
-    Sundays: every rep and manager gets the overdue debt of the customers he sees."""
-    from kayanick_crm.debt_api import currency, customer_reps, days_overdue, open_invoices
-    from kayanick_crm.perms import user_of
+    """Daily: invoices that became overdue since the last run (one line per customer), to everyone who sees the
+    customer. Sundays: every app user gets the overdue debt of the customers they see."""
+    from kayanick_crm.debt_api import currency, open_invoices
 
     day = getdate(today())
+    last = frappe.db.get_default(LAST_DEBT_ALERTS)
+    # an invoice falls overdue the day after its due date: since the last run (on a normal day, yesterday's)
+    since = max(getdate(last), getdate(add_days(day, -CATCH_UP_DAYS))) if last else getdate(add_days(day, -1))
     cur = currency()
-    reps = customer_reps()
-    newly = {}  # customer -> invoices due yesterday
-    for inv in open_invoices(set(reps)):
-        if inv.outstanding_amount > 0 and days_overdue(inv.due_date, day) == 1:
+    viewers = debt_viewers()
+    newly = {}  # customer -> invoices that fell overdue since the last run
+    for inv in open_invoices():
+        if inv.outstanding_amount > 0 and inv.due_date and since <= getdate(inv.due_date) < day:
             newly.setdefault(inv.customer, []).append(inv)
     for customer, invoices in newly.items():
-        employee = reps[customer]
         name = invoices[0].customer_name or customer
         amount = _money(sum(i.outstanding_amount for i in invoices), cur)
         what = invoices[0].name if len(invoices) == 1 else "{0} invoices".format(len(invoices))
         verb = "is" if len(invoices) == 1 else "are"
-        for u in {user_of(employee)} | managers_of_employee(employee):
+        for u in customer_readers(customer, viewers):
             notify(u, "{0} of {1} {2} now overdue: {3}".format(what, name, verb, amount), "Customer", customer,
                    title="⏰ Payment overdue", body="{0} · {1} · {2}".format(name, what, amount))
+    frappe.db.set_default(LAST_DEBT_ALERTS, str(day))
 
     if day.weekday() == WEEKLY_DEBT_DAY:
         weekly_debt_digest()
 
 
 def weekly_debt_digest():
-    from kayanick_crm.debt_api import currency, debts, visible_customers
-    from kayanick_crm.perms import field_users
+    from kayanick_crm.debt_api import currency, customer_reps, debts
 
     cur = currency()
-    for user in field_users():
-        customers, reps = visible_customers(user)
+    reps = customer_reps()
+    for user, customers in debt_viewers().items():
         rows, totals, _aging = debts(customers, reps)
         if not totals["overdue"]:
             continue
@@ -328,7 +412,7 @@ def unread_count():
 
 
 @frappe.whitelist(methods=["POST"])
-def mark_read(name=None):
+def mark_read(name: str | None = None):
     filters, or_filters = _ours(frappe.session.user, read=0)
     if name:
         filters["name"] = name

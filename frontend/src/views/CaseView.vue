@@ -2,7 +2,7 @@
 import { ref, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
-import { fmt, fmtTime, usedItemsError, localToday } from "../ui"
+import { fmt, fmtTime, usedItemsError, localToday, price } from "../ui"
 import Icon from "../components/Icon.vue"
 import RecordNav from "../components/RecordNav.vue"
 import FileList from "../components/FileList.vue"
@@ -22,10 +22,10 @@ const deleting = ref(false)
 const marking = ref(false)
 // marking attended asks "used products?" first
 const answering = ref(false)
-const ans = ref({ used: "", items: [], by: null, note: "" })
+const ans = ref({ used: "", items: [], by: null, note: "", invoice_type: "", customer: "", customer_name: "" })
 function startAttend() {
   error.value = ""
-  ans.value = { used: "", items: [], by: null, note: "" }
+  ans.value = { used: "", items: [], by: null, note: "", invoice_type: "", customer: "", customer_name: "" }
   postponing.value = false
   cancelling.value = false
   answering.value = true
@@ -93,7 +93,7 @@ async function submitPostpone() {
 async function submitAttended(attended) {
   error.value = ""
   if (attended) {
-    const err = usedItemsError(ans.value.used, ans.value.items)
+    const err = usedItemsError(ans.value.used, ans.value.items, ans.value.invoice_type, ans.value.customer)
       || (!ans.value.note.trim() ? "Write your notes on the case" : "")
     if (err) { error.value = err; window.scrollTo({ top: 0, behavior: "smooth" }); return }
   }
@@ -103,7 +103,9 @@ async function submitAttended(attended) {
       name: c.value.name, attended: attended ? 1 : 0, used_products: attended ? ans.value.used : "",
       attended_by: attended && ans.value.by ? ans.value.by.name : "",
       attended_notes: attended ? ans.value.note : "",
-      used_items: attended && ans.value.used === "Yes" ? ans.value.items.map((r) => ({ item_code: r.item_code, qty: r.qty })) : [],
+      used_items: attended && ans.value.used === "Yes" ? ans.value.items.map((r) => ({ item_code: r.item_code, qty: r.qty, rate: r.rate })) : [],
+      invoice_type: attended && ans.value.used === "Yes" ? ans.value.invoice_type : "",
+      customer: attended && ans.value.used === "Yes" ? ans.value.customer : "",
     }, { post: true })
     answering.value = false
     // attended by someone outside this user's records: the case is his now
@@ -181,8 +183,25 @@ onMounted(load)
                 <span class="block break-words text-sm font-medium" dir="auto">{{ r.item_name }}</span>
                 <span v-if="r.item_code !== r.item_name" class="block break-words text-xs text-gray-500">{{ r.item_code }}</span>
               </span>
-              <span class="shrink-0 text-sm font-medium">{{ r.qty }}<span v-if="r.uom" class="text-xs text-gray-500"> {{ r.uom }}</span></span>
+              <span class="shrink-0 text-right text-sm">
+                <span class="block font-medium">{{ r.qty }}<span v-if="r.uom" class="text-xs text-gray-500"> {{ r.uom }}</span></span>
+                <span v-if="r.rate" class="block text-xs text-gray-500">@ {{ price(r.rate) }} = {{ price(r.amount) }}</span>
+              </span>
             </div>
+            <div v-if="c.invoice_type || c.total_amount" class="flex items-center gap-2 px-4 py-2.5 text-sm">
+              <span v-if="c.invoice_type" class="badge badge-blue">{{ c.invoice_type }}</span>
+              <span class="ml-auto text-gray-500">Total</span>
+              <span class="font-semibold">{{ price(c.total_amount) }} {{ c.currency }}</span>
+            </div>
+            <div v-if="c.customer" class="px-4 py-2.5 text-sm">
+              <span class="text-xs text-gray-500">Customer</span>
+              <p dir="auto">{{ c.customer_name || c.customer }}</p>
+            </div>
+            <router-link v-if="c.sales_order" :to="{ name: 'order', params: { name: c.sales_order } }" class="flex items-center gap-2 px-4 py-2.5 text-sm active:bg-gray-50">
+              <Icon name="package" :size="14" class="text-gray-500" /><span>{{ c.sales_order }}</span>
+              <span class="badge ml-auto" :class="c.order_state === 'Waiting for review' ? 'badge-amber' : c.order_state === 'Cancelled' ? 'badge-red' : 'badge-green'">{{ c.order_state }}</span>
+              <Icon name="chevron-right" :size="16" class="text-gray-300" />
+            </router-link>
           </div>
         </section>
 
@@ -219,7 +238,8 @@ onMounted(load)
           <p class="section-label"><Icon name="cart" :size="14" />Mark as attended</p>
           <div class="card space-y-3 p-4">
             <AttendeePick v-model="ans.by" />
-            <UsedItems v-model:used="ans.used" v-model:items="ans.items" />
+            <UsedItems v-model:used="ans.used" v-model:items="ans.items" v-model:invoice-type="ans.invoice_type"
+              v-model:customer="ans.customer" v-model:customer-name="ans.customer_name" />
             <div>
               <label class="label">Notes<span class="text-red-500"> *</span></label>
               <textarea v-model="ans.note" rows="3" placeholder="What happened in the case?" class="input h-auto resize-none py-2" dir="auto"></textarea>

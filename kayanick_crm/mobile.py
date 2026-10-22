@@ -5,7 +5,7 @@ from frappe import _
 from frappe.utils import add_days, cint, get_first_day, get_fullname, get_last_day, getdate, now, today
 
 from kayanick_crm.notify import unread
-from kayanick_crm.perms import employee_of, field_users, require_employee, visible_employees
+from kayanick_crm.perms import access_problem, employee_of, field_users, require_employee, scope
 
 VISIT_FIELDS = (
     "hospital", "visit_purpose", "visit_outcome", "notes", "next_action", "has_next_visit",
@@ -151,6 +151,9 @@ def get_options():
     # Create permission on KC Hospital / KC Doctor (KC Manager)
     out["can_add_hospital"] = bool(frappe.has_permission("KC Hospital", "create"))
     out["can_add_doctor"] = bool(frappe.has_permission("KC Doctor", "create"))
+    from kayanick_crm.orders_api import can_order
+
+    out["can_order"] = can_order() and not access_problem()
     return out
 
 
@@ -166,7 +169,7 @@ def _doctor_display(text):
 
 
 @frappe.whitelist(methods=["POST"])
-def create_hospital(hospital_name, area=None, hospital_type=None):
+def create_hospital(hospital_name: str | None, area: str | None = None, hospital_type: str | None = None):
     frappe.has_permission("KC Hospital", "create", throw=True)
     name = " ".join((hospital_name or "").split())
     if not name:
@@ -179,7 +182,7 @@ def create_hospital(hospital_name, area=None, hospital_type=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def create_doctor(doctor_name, relationship_level=None):
+def create_doctor(doctor_name: str | None, relationship_level: str | None = None):
     frappe.has_permission("KC Doctor", "create", throw=True)
     name = _doctor_display(doctor_name)
     if not name:
@@ -242,11 +245,11 @@ def get_today():
     from kayanick_crm.debt_api import debt_summary
 
     return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "cases": cases, "recent": recent,
-            "unread": unread(user), "debt": debt_summary(user)}
+            "unread": unread(user), "debt": debt_summary(user), "problem": access_problem(user)}
 
 
 @frappe.whitelist()
-def search(text=""):
+def search(text: str | None = ""):
     text = (text or "").strip()[:60]
     like = "%" + text + "%"
     hosp = dict(fields=["name", "area", "hospital_type", "last_visit", "next_visit"],
@@ -260,13 +263,13 @@ def search(text=""):
 
 
 @frappe.whitelist()
-def get_doctor(name):
+def get_doctor(name: str):
     rows = frappe.get_list("KC Doctor", filters={"name": name}, fields=["name", "doctor_name", "relationship_level"])
     return rows[0] if rows else None
 
 
 @frappe.whitelist()
-def get_profile(doctype, name):
+def get_profile(doctype: str, name: str):
     """Hospital or doctor card with its visits and cases (visits/cases follow the usual team visibility)."""
     if doctype not in ("KC Hospital", "KC Doctor"):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -343,7 +346,7 @@ def get_team():
     """Reps whose records the current user can see (for the rep filter). Empty for a plain rep.
     `user` carries the rep's Employee (the key name is kept for the app)."""
     reps = field_users().values()
-    allowed = visible_employees()
+    allowed = scope()
     reps = [e for e in reps if allowed is None or e in allowed]
     if len(reps) <= 1:
         return []
@@ -374,7 +377,7 @@ def get_visits(args=None):
 
 
 @frappe.whitelist()
-def get_visit(name):
+def get_visit(name: str):
     from kayanick_crm.case_api import attachments
 
     doc = frappe.get_doc("KC Visit", name)
@@ -395,7 +398,7 @@ def get_visit(name):
 
 
 @frappe.whitelist(methods=["POST"])
-def delete_record(doctype, name):
+def delete_record(doctype: str, name: str):
     # frappe.delete_doc checks the Delete permission (KC Manager)
     if doctype not in ("KC Visit", "KC Case"):
         frappe.throw(_("Not permitted"), frappe.PermissionError)

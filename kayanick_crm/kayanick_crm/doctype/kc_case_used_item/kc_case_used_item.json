@@ -12,7 +12,7 @@
    "options": "Item",
    "reqd": 1,
    "in_list_view": 1,
-   "columns": 4
+   "columns": 3
   },
   {
    "fieldname": "item_name",
@@ -21,7 +21,7 @@
    "fetch_from": "item_code.item_name",
    "read_only": 1,
    "in_list_view": 1,
-   "columns": 4
+   "columns": 3
   },
   {
    "fieldname": "qty",
@@ -41,13 +41,30 @@
    "read_only": 1,
    "in_list_view": 1,
    "columns": 1
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Price",
+   "in_list_view": 1,
+   "columns": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "read_only": 1,
+   "in_list_view": 1,
+   "columns": 1
   }
  ],
  "field_order": [
   "item_code",
   "item_name",
   "qty",
-  "uom"
+  "uom",
+  "rate",
+  "amount"
  ],
  "permissions": [],
  "sort_field": "modified",

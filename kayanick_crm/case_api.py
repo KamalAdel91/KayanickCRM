@@ -4,7 +4,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, get_fullname, get_time, getdate, now, today
 
-from kayanick_crm.perms import field_users, require_employee, user_of
+from kayanick_crm.perms import field_users, require_employee, require_scope, user_of
 
 
 def _check_role():
@@ -94,7 +94,8 @@ def _attach_files(doctype, name, files):
 
 
 @frappe.whitelist()
-def get_case(name):
+def get_case(name: str):
+    from kayanick_crm.debt_api import currency
     from kayanick_crm.mobile import doctors_text
 
     doc = frappe.get_doc("KC Case", name)
@@ -115,8 +116,12 @@ def get_case(name):
         "products": [p.product for p in doc.products],
         "used_products": doc.used_products or "",
         "attended_notes": (doc.attended_notes or "") if attended else "",
-        "used_items": [{"item_code": r.item_code, "item_name": r.item_name, "qty": r.qty, "uom": r.uom}
-                       for r in doc.used_items],
+        "used_items": [{"item_code": r.item_code, "item_name": r.item_name, "qty": r.qty, "uom": r.uom,
+                        "rate": r.rate, "amount": r.amount} for r in doc.used_items],
+        "invoice_type": doc.invoice_type or "", "total_amount": doc.total_amount, "currency": currency(),
+        "customer": doc.customer or "",
+        "customer_name": frappe.db.get_value("Customer", doc.customer, "customer_name") if doc.customer else "",
+        "sales_order": doc.sales_order or "", "order_state": _order_state(doc.sales_order),
         "attachments": attachments("KC Case", doc.name),
         "can_delete": bool(frappe.has_permission("KC Case", "delete", doc=doc)),
         "can_edit": can_edit,
@@ -137,7 +142,7 @@ def _log(doc, action, reason=None, **extra):
 
 
 @frappe.whitelist(methods=["POST"])
-def postpone_case(name, case_date, case_time, reason=None):
+def postpone_case(name: str, case_date: str | None, case_time: str | None, reason: str | None = None):
     """Moves a planned case to a new date/time and keeps the old one in the history."""
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")
@@ -158,7 +163,7 @@ def postpone_case(name, case_date, case_time, reason=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def cancel_case(name, reason=None):
+def cancel_case(name: str, reason: str | None = None):
     """Cancels a planned case (kept for history, hidden from Planned / Today / reminders)."""
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")
@@ -169,12 +174,12 @@ def cancel_case(name, reason=None):
     _log(doc, "Cancelled", reason)
     doc.status = "Cancelled"
     doc.save()
-    frappe.enqueue("kayanick_crm.notify._case_cancelled_to_managers", name=doc.name, enqueue_after_commit=True)
+    frappe.enqueue("kayanick_crm.notify._case_cancelled_to_readers", name=doc.name, enqueue_after_commit=True)
     return "ok"
 
 
 @frappe.whitelist(methods=["POST"])
-def reopen_case(name):
+def reopen_case(name: str):
     """Puts a cancelled case back to Planned."""
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")
@@ -189,18 +194,22 @@ def reopen_case(name):
 def _used_rows(items):
     if isinstance(items, str):
         items = json.loads(items or "[]")
-    return [{"item_code": r.get("item_code"), "qty": frappe.utils.flt(r.get("qty"))}
+    return [{"item_code": r.get("item_code"), "qty": frappe.utils.flt(r.get("qty")), "rate": frappe.utils.flt(r.get("rate"))}
             for r in (items or []) if r.get("item_code")]
 
 
-def _apply_used(doc, used_products, used_items, attended_by=None, attended_notes=None):
-    """Who attended + the used products + his notes, for a case being saved as attended."""
+def _apply_used(doc, used_products, used_items, attended_by=None, attended_notes=None, invoice_type=None,
+                customer=None):
+    """Who attended, the used products with their prices, the invoice type and customer of their Sales Order, and
+    the notes, for a case being saved as attended (KCCase.validate checks them)."""
     doc.employee = _attendee(attended_by)
     doc.attended_notes = (attended_notes or "").strip()
     if used_products not in ("Yes", "No"):
         frappe.throw(_("Did you use products in this case? Choose Yes or No"))
     doc.used_products = used_products
     doc.set("used_items", _used_rows(used_items) if used_products == "Yes" else [])
+    doc.invoice_type = invoice_type if used_products == "Yes" else None
+    doc.customer = customer if used_products == "Yes" else None
 
 
 def _attendee(user):
@@ -215,7 +224,7 @@ def _attendee(user):
 
 
 @frappe.whitelist()
-def search_attendees(text=""):
+def search_attendees(text: str | None = ""):
     """Reps and managers (KC Rep / KC Manager with an active Employee) can be picked as the one who attended."""
     _check_role()
     users = set(field_users())
@@ -229,11 +238,13 @@ def search_attendees(text=""):
 
 
 @frappe.whitelist()
-def search_items(text=""):
-    """ERPNext items for the 'used products' picker (info only, no stock effect)."""
+def search_items(text: str | None = ""):
+    """ERPNext items for the 'used products' picker: stock items that can be sold (their Sales Order bills them;
+    stock is not touched)."""
     _check_role()
     text = (text or "").strip()[:60]
-    kw = dict(filters={"disabled": 0, "has_variants": 0, "is_stock_item": 1}, fields=["name", "item_name", "stock_uom"],
+    kw = dict(filters={"disabled": 0, "has_variants": 0, "is_stock_item": 1, "is_sales_item": 1},
+              fields=["name", "item_name", "stock_uom"],
               order_by="item_name asc", limit_page_length=50)
     if text:
         kw["or_filters"] = [["item_name", "like", "%" + text + "%"], ["name", "like", "%" + text + "%"]]
@@ -241,14 +252,15 @@ def search_items(text=""):
 
 
 @frappe.whitelist(methods=["POST"])
-def set_attended(name, attended=1, used_products=None, used_items=None, attended_by=None, attended_notes=None):
+def set_attended(name: str, attended=1, used_products=None, used_items=None, attended_by=None, attended_notes=None,
+                 invoice_type: str | None = None, customer: str | None = None):
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")  # on the case as it is now
     if doc.status == "Cancelled":
         frappe.throw(_("This case is cancelled. Reopen it first"))
     if cint(attended):
         doc.status = "Attended"
-        _apply_used(doc, used_products, used_items, attended_by, attended_notes)
+        _apply_used(doc, used_products, used_items, attended_by, attended_notes, invoice_type, customer)
     else:
         doc.status = "Planned"
     doc.flags.handled_by = frappe.session.user
@@ -263,6 +275,7 @@ def set_attended(name, attended=1, used_products=None, used_items=None, attended
 def create_case(payload):
     _check_role()
     frappe.has_permission("KC Case", "create", throw=True)
+    require_scope()
     from kayanick_crm.mobile import doctor_rows
 
     data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})
@@ -280,9 +293,19 @@ def create_case(payload):
         "products": [{"product": p} for p in (data.get("products") or []) if p],
     })
     if case.status == "Attended":
-        _apply_used(case, data.get("used_products"), data.get("used_items"), data.get("attended_by"), data.get("attended_notes"))
+        _apply_used(case, data.get("used_products"), data.get("used_items"), data.get("attended_by"),
+                    data.get("attended_notes"), data.get("invoice_type"), data.get("customer"))
     case.flags.handled_by = frappe.session.user
     # Create permission was checked above; the attendee may be someone outside this user's team
     case.insert(ignore_permissions=True)
     _attach_files("KC Case", case.name, data.get("files"))
     return {"case": case.name, "can_read": bool(frappe.has_permission("KC Case", "read", doc=case.name))}
+
+
+def _order_state(name):
+    if not name:
+        return ""
+    from kayanick_crm.orders_api import state
+
+    row = frappe.db.get_value("Sales Order", name, ["docstatus", "status"], as_dict=True)
+    return state(row) if row else ""

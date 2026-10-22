@@ -80,6 +80,7 @@ onMounted(() => {
 
       <div v-if="toast" class="toast"><Icon name="check" :size="16" />{{ toast }}</div>
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
+      <div v-if="data && data.problem" class="alert border-amber-200 bg-amber-50 text-amber-800"><Icon name="alert" :size="16" /><span>{{ data.problem }}</span></div>
 
       <div v-if="next" class="rounded-2xl bg-gradient-to-br from-brand-600 to-brand-800 p-4 text-white shadow-md shadow-brand-600/20">
         <p class="text-[11px] font-semibold uppercase tracking-wider text-brand-100">Next up</p>

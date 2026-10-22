@@ -124,18 +124,6 @@ add_to_apps_screen = [
 
 # notification_config = "kayanick_crm.notifications.get_notification_config"
 
-# Permissions
-# -----------
-# Permissions evaluated in scripted ways
-
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
-
 # Document Events
 # ---------------
 # Hook on document methods and events
@@ -260,7 +248,7 @@ add_to_apps_screen = [
 
 
 fixtures = [
-    {"dt": "Role", "filters": [["name", "in", ["KC Rep", "KC Manager", "KC Viewer"]]]},
+    {"dt": "Role", "filters": [["name", "in", ["KC Rep", "KC Manager", "KC Viewer", "KC Accounts"]]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Dashboard Chart", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Desktop Icon", "filters": [["name", "=", "Kayanick CRM"]]},
@@ -279,7 +267,19 @@ website_route_rules = [
 ]
 
 before_migrate = ["kayanick_crm.setup.fix_module_def"]
-after_migrate = ["kayanick_crm.setup.fix_module_def", "kayanick_crm.setup.hide_extra_desktop_icons", "kayanick_crm.setup.remove_converted_sidebars"]
+after_install = ["kayanick_crm.setup.make_custom_fields"]
+after_migrate = ["kayanick_crm.setup.fix_module_def", "kayanick_crm.setup.hide_extra_desktop_icons", "kayanick_crm.setup.remove_converted_sidebars",
+                 "kayanick_crm.setup.make_custom_fields"]
+
+# who sees what: see perms.py
+permission_query_conditions = {
+    "KC Visit": "kayanick_crm.perms.record_query_conditions",
+    "KC Case": "kayanick_crm.perms.record_query_conditions",
+}
+has_permission = {
+    "KC Visit": "kayanick_crm.perms.has_record_permission",
+    "KC Case": "kayanick_crm.perms.has_record_permission",
+}
 
 doc_events = {
     "KC Visit": {"after_insert": "kayanick_crm.notify.visit_created"},
@@ -287,7 +287,20 @@ doc_events = {
         "after_insert": "kayanick_crm.notify.case_created",
         "validate": "kayanick_crm.stock_items.validate_stock_items",
     },
-    "Payment Entry": {"on_submit": "kayanick_crm.notify.payment_received"},
+    "Sales Order": {
+        "after_insert": "kayanick_crm.notify.order_created",
+        "on_submit": "kayanick_crm.notify.order_submitted",
+        "on_cancel": "kayanick_crm.notify.order_cancelled",
+    },
+    "Payment Entry": {
+        "on_submit": "kayanick_crm.notify.payment_received",
+        "on_cancel": "kayanick_crm.notify.payment_cancelled",
+    },
+    "User": {"on_update": "kayanick_crm.perms.on_user_update"},
+    "Employee": {
+        "validate": "kayanick_crm.perms.on_employee_validate",
+        "on_update": "kayanick_crm.perms.on_employee_update",
+    },
 }
 
 scheduler_events = {

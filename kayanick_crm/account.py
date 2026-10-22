@@ -58,7 +58,7 @@ def get_account():
 
 
 @frappe.whitelist(methods=["POST"])
-def change_password(old_password, new_password, logout_others=0):
+def change_password(old_password: str | None, new_password: str | None, logout_others=0):
     """The logged-in user changes his own password. The current session stays signed in."""
     from frappe.sessions import clear_sessions
     from frappe.utils.password import check_password
@@ -86,7 +86,7 @@ def change_password(old_password, new_password, logout_others=0):
 
 
 @frappe.whitelist()
-def search_users(text=""):
+def search_users(text: str | None = ""):
     """Users an admin can reset a password for (enabled, not Administrator/Guest, not himself)."""
     _require_admin()
     text = (text or "").strip()[:60]
@@ -100,7 +100,7 @@ def search_users(text=""):
 
 
 @frappe.whitelist(methods=["POST"])
-def admin_reset_password(user, new_password, logout_all=1):
+def admin_reset_password(user: str, new_password: str | None, logout_all=1):
     """An admin sets a new password for another user (no old password needed)."""
     from frappe.sessions import clear_sessions
 

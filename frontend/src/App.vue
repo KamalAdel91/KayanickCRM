@@ -7,14 +7,14 @@ import InstallPrompt from "./components/InstallPrompt.vue"
 const route = useRoute()
 // detail pages remount for each record (prev / next buttons); lists keep their state when you come back
 const viewKey = computed(() => (["case-detail", "visit-detail"].includes(route.name) ? route.fullPath : route.name))
-const showNav = computed(() => !["visit", "case", "notifications", "change-password", "reset-password"].includes(route.name))
+const showNav = computed(() => !["visit", "case", "new-order", "notifications", "change-password", "reset-password"].includes(route.name))
 </script>
 
 <template>
   <div class="min-h-screen" :class="showNav ? 'pb-20' : ''">
     <router-view v-slot="{ Component }">
       <transition name="page" mode="out-in">
-        <keep-alive :include="['CasesView', 'VisitsView', 'DebtsView']"><component :is="Component" :key="viewKey" /></keep-alive>
+        <keep-alive :include="['CasesView', 'VisitsView', 'DebtsView', 'OrdersView']"><component :is="Component" :key="viewKey" /></keep-alive>
       </transition>
     </router-view>
     <InstallPrompt v-if="showNav" />
@@ -28,6 +28,9 @@ const showNav = computed(() => !["visit", "case", "notifications", "change-passw
         </router-link>
         <router-link to="/cases" class="tab" :class="{ 'tab-on': ['cases', 'case-detail'].includes(route.name) }">
           <Icon name="cart" :size="21" /><span>Cases</span>
+        </router-link>
+        <router-link to="/orders" class="tab" :class="{ 'tab-on': ['orders', 'order'].includes(route.name) }">
+          <Icon name="package" :size="21" /><span>Orders</span>
         </router-link>
         <router-link to="/debts" class="tab" :class="{ 'tab-on': ['debts', 'debt', 'invoice'].includes(route.name) }">
           <Icon name="wallet" :size="21" /><span>Debt</span>

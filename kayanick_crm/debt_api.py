@@ -1,12 +1,8 @@
 """Customer debt for the mobile app.
 
-A customer belongs to the rep in his Sales Team (Customer > Sales Team > Sales Person, whose Employee is the rep).
-
-Who sees which customers:
-- A rep (no KC Manager / KC Viewer / System Manager role) sees only his own customers, whatever his User
-  Permissions say. A rep with no Employee sees none.
-- Everyone else follows the Employee rule of visits and cases (see perms.py): a manager with Create User Permission
-  sees his own and his team's customers; users without it see every customer, including the ones with no rep.
+A customer belongs to the rep in the customer's Sales Team (Customer > Sales Team > Sales Person, whose Employee is
+the rep). Whoever sees the rep's visits and cases sees the rep's customers (perms.scope): a rep their own, a manager
+their team's, KC Viewer / System Manager every customer, including the ones with no rep.
 
 Reps have no permission on Sales Invoice / Payment Entry, so the figures are read here, limited to those customers.
 """
@@ -14,9 +10,8 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, date_diff, flt, getdate, today
 
-from kayanick_crm.perms import employee_of, is_app_user, visible_employees
+from kayanick_crm.perms import is_app_user, scope
 
-BEYOND_OWN_ROLES = ("System Manager", "KC Manager", "KC Viewer")
 AGING = (("1-30", 30), ("31-60", 60), ("61-90", 90), ("90+", None))  # days overdue
 DUE_SOON_DAYS = 7
 
@@ -40,13 +35,9 @@ def customer_reps():
 
 
 def visible_customers(user=None):
-    """(customers the user may see or None for all, {customer: Employee})."""
-    user = user or frappe.session.user
+    """(customers the user may see or None for all, {customer: Employee}): those of the reps in the user's scope."""
     reps = customer_reps()
-    if user != "Administrator" and not set(frappe.get_roles(user)) & set(BEYOND_OWN_ROLES):
-        me = employee_of(user)
-        return {c for c, e in reps.items() if me and e == me}, reps
-    allowed = visible_employees(user)
+    allowed = scope(user or frappe.session.user)
     if allowed is None:
         return None, reps
     return {c for c, e in reps.items() if e in allowed}, reps
@@ -146,7 +137,7 @@ def debts(customers, reps):
 
 
 @frappe.whitelist()
-def get_debts(employee=None):
+def get_debts(employee: str | None = None):
     """Customers that owe money, biggest first, with the totals and aging. `employee` narrows to one rep's
     customers (within what the user sees)."""
     _check_app_user()
@@ -171,7 +162,7 @@ def debt_summary(user=None):
 
 
 @frappe.whitelist()
-def get_customer_debt(customer):
+def get_customer_debt(customer: str):
     """One customer's open invoices, unallocated payments and last payments received."""
     _check_app_user()
     customers, reps = visible_customers()
@@ -237,7 +228,7 @@ def _settled_by(name):
 
 
 @frappe.whitelist()
-def get_invoice(name):
+def get_invoice(name: str):
     """One invoice: items, taxes, payment schedule and what was paid against it."""
     doc = _invoice(name)
     day = getdate(today())
@@ -261,7 +252,7 @@ def get_invoice(name):
 
 
 @frappe.whitelist()
-def invoice_pdf(name):
+def invoice_pdf(name: str):
     """The printed invoice as a PDF. Reps can't print Sales Invoices themselves, so the print permission check is
     skipped here, after _invoice checked the customer is his."""
     doc = _invoice(name)
