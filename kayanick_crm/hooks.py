@@ -286,7 +286,6 @@ doc_events = {
     "KC Case": {
         "after_insert": "kayanick_crm.notify.case_created",
         "validate": "kayanick_crm.stock_items.validate_stock_items",
-        "on_update": "kayanick_crm.notify.case_updated",
     },
     "Sales Order": {
         "after_insert": "kayanick_crm.notify.order_created",

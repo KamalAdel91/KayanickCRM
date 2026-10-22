@@ -1,7 +1,12 @@
-"""Sales Orders from the mobile app. A rep orders for any customer; the order is saved as a Draft, and KC Accounts
-review it in the Desk (prices, taxes, warehouse) and submit it.
+"""Sales Orders from the mobile app. They come from two places (Sales Order.kc_source):
 
-An order belongs to the rep who placed it (Sales Order.kc_employee). Who sees it follows the app's one rule
+- Direct Order: a rep orders for any customer from the Orders tab.
+- Case: a rep marks a case attended with used products. The case keeps its Sales Order in step while the order
+  is a Draft, and deletes the Draft if the case no longer has used products. Once accounts submit the order, the
+  case's used products are locked (KCCase.validate_order_lock).
+
+Either way the order is a Draft with an invoice type (System / Cash). KC Accounts review it in the Desk and
+submit it. An order belongs to the rep (Sales Order.kc_employee), and who sees it follows the app's one rule
 (perms.scope). Reps have no permission on Sales Order, so the orders are read and written here.
 """
 import json
@@ -13,8 +18,10 @@ from frappe.utils import add_days, flt, getdate, strip_html, today
 from kayanick_crm.perms import FIELD_ROLES, as_administrator, is_app_user, require_employee, require_scope, scope
 
 ORDER_FIELDS = ["name", "customer", "customer_name", "transaction_date", "delivery_date", "total", "grand_total",
-                "currency", "status", "docstatus", "kc_employee", "creation"]
+                "currency", "status", "docstatus", "kc_employee", "kc_source", "kc_case", "kc_invoice_type",
+                "creation"]
 STATES = {"draft": 0, "approved": 1, "cancelled": 2}  # the app's tabs -> docstatus
+INVOICE_TYPES = ("System", "Cash")
 
 
 def can_order(user=None):
@@ -89,9 +96,41 @@ def _order_rows(items, delivery_date):
     return rows
 
 
+def _fill(order, customer, employee, invoice_type, items, transaction_date, delivery_date):
+    """Sets what the app decides on a new or Draft order."""
+    order.update({
+        "customer": customer, "customer_name": frappe.db.get_value("Customer", customer, "customer_name"),
+        "transaction_date": transaction_date, "delivery_date": delivery_date, "kc_employee": employee,
+        "kc_invoice_type": invoice_type,
+    })
+    order.set("items", _order_rows(items, delivery_date))
+    order.set("sales_team", [])
+    person = frappe.db.get_value("Sales Person", {"employee": employee, "enabled": 1}, "name")
+    if person:
+        order.append("sales_team", {"sales_person": person, "allocated_percentage": 100})
+
+
+def _save(order):
+    """Saves the order for the current user, after the app checked their right to order.
+
+    Reps have no permission on Sales Order or Item (it shows the valuation rate), and ERPNext checks Item while it
+    fills the item details. So the order is saved as Administrator, and a new one is given back to the user as its
+    owner."""
+    user = frappe.session.user
+    new = order.is_new()
+    with as_administrator():
+        if new:
+            order.insert(ignore_permissions=True)
+        else:
+            order.save(ignore_permissions=True)
+    if new:
+        frappe.db.set_value("Sales Order", order.name, {"owner": user, "modified_by": user}, update_modified=False)
+    return order
+
+
 @frappe.whitelist(methods=["POST"])
 def create_order(payload):
-    """A Draft Sales Order placed by the current rep; KC Accounts get notified (notify.order_created)."""
+    """A rep's direct order: a Draft Sales Order; KC Accounts get notified (notify.order_created)."""
     _require_orderer()
     require_scope()
     employee = require_employee()
@@ -99,34 +138,58 @@ def create_order(payload):
     customer = data.get("customer")
     if not customer or not frappe.db.exists("Customer", {"name": customer, "disabled": 0}):
         frappe.throw(_("Choose the customer"))
+    if data.get("invoice_type") not in INVOICE_TYPES:
+        frappe.throw(_("Choose the invoice type: System or Cash"))
     delivery_date = getdate(data.get("delivery_date") or add_days(today(), 1))
     if delivery_date < getdate(today()):
         frappe.throw(_("The delivery date can't be in the past"))
 
-    order = frappe.get_doc({
-        "doctype": "Sales Order", "customer": customer, "transaction_date": today(), "delivery_date": delivery_date,
-        "kc_employee": employee, "items": _order_rows(data.get("items"), delivery_date),
-    })
-    person = frappe.db.get_value("Sales Person", {"employee": employee, "enabled": 1}, "name")
-    if person:
-        order.append("sales_team", {"sales_person": person, "allocated_percentage": 100})
-    # reps have no permission on Sales Order or Item (it shows the valuation rate), and ERPNext checks Item while it
-    # fills the item details. The rep's right to order is checked above, so the Draft is saved as Administrator,
-    # then given back to the rep as its owner. It stays a Draft until KC Accounts submit it.
-    rep = frappe.session.user
-    with as_administrator():
-        order.insert(ignore_permissions=True)
-    frappe.db.set_value("Sales Order", order.name, {"owner": rep, "modified_by": rep}, update_modified=False)
+    order = frappe.new_doc("Sales Order")
+    order.kc_source = "Direct Order"
+    _fill(order, customer, employee, data.get("invoice_type"), data.get("items"), getdate(today()), delivery_date)
+    _save(order)
     notes = (data.get("notes") or "").strip()
     if notes:
         order.add_comment("Comment", notes)
     return {"name": order.name}
 
 
+def sync_case_order(case):
+    """Called after a case is saved (KCCase.on_update): makes, updates or deletes the Draft Sales Order of its
+    used products. A case attended before Sales Orders existed (no customer or invoice type) gets none."""
+    order = None
+    if case.sales_order and frappe.db.exists("Sales Order", case.sales_order):
+        order = frappe.get_doc("Sales Order", case.sales_order)
+        if order.docstatus == 1:
+            return  # approved: the case can't change it any more
+        if order.docstatus == 2:
+            order = None  # cancelled by accounts: a new one replaces it
+    wanted = (case.status == "Attended" and case.used_products == "Yes" and case.used_items and case.customer
+              and case.invoice_type)
+    if not wanted:
+        if order:
+            case.db_set("sales_order", None, update_modified=False)
+            with as_administrator():
+                frappe.delete_doc("Sales Order", order.name, ignore_permissions=True)
+        elif case.sales_order:
+            case.db_set("sales_order", None, update_modified=False)
+        return
+
+    day = getdate(case.case_date)
+    if not order:
+        order = frappe.new_doc("Sales Order")
+        order.update({"kc_source": "Case", "kc_case": case.name})
+    _fill(order, case.customer, case.employee, case.invoice_type,
+          [{"item_code": r.item_code, "qty": r.qty, "rate": r.rate} for r in case.used_items], day, day)
+    _save(order)
+    if case.sales_order != order.name:
+        case.db_set("sales_order", order.name, update_modified=False)
+
+
 @frappe.whitelist()
 def get_orders(args=None):
-    """The app's orders the user sees, newest first. args: status (draft / approved / cancelled), employee,
-    customer, start, limit."""
+    """The app's orders the user sees, newest first. args: status (draft / approved / cancelled), source
+    (Direct Order / Case), employee, customer, start, limit."""
     from kayanick_crm.mobile import page_args
 
     _require_app_user()
@@ -139,6 +202,8 @@ def get_orders(args=None):
         filters.append(["kc_employee", "=", a.employee])
     if a.get("customer"):
         filters.append(["customer", "=", a.customer])
+    if a.get("source") in ("Direct Order", "Case"):
+        filters.append(["kc_source", "=", a.source])
     if a.get("status") in STATES:
         filters.append(["docstatus", "=", STATES[a.status]])
     start, limit = page_args(a)
@@ -165,6 +230,7 @@ def get_order(name: str):
         "name": doc.name, "customer": doc.customer, "customer_name": doc.customer_name, "currency": doc.currency,
         "transaction_date": doc.transaction_date, "delivery_date": doc.delivery_date, "state": state(doc),
         "docstatus": doc.docstatus, "rep_name": _rep_names([employee]).get(employee) or employee,
+        "source": doc.kc_source or "", "case": doc.kc_case or "", "invoice_type": doc.kc_invoice_type or "",
         "items": [{"item_code": i.item_code, "item_name": i.item_name, "qty": i.qty, "uom": i.uom, "rate": i.rate,
                    "amount": i.amount} for i in doc.items],
         "total": doc.total, "taxes": doc.total_taxes_and_charges, "grand_total": doc.grand_total,
@@ -178,4 +244,3 @@ def _rep_names(employees):
         return {}
     return dict(frappe.get_all("Employee", filters={"name": ["in", employees]}, fields=["name", "employee_name"],
                                as_list=True))
-

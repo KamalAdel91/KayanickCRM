@@ -5,12 +5,22 @@ import { price, lineTotal, itemsTotal } from "../ui"
 import Icon from "./Icon.vue"
 import PickerSheet from "./PickerSheet.vue"
 
-// used: "" | "Yes" | "No"; items: [{ item_code, item_name, uom, qty, rate }]; invoiceType: "" | "System" | "Cash".
-// The prices and the invoice type let accounts invoice the case; stock is not affected.
+// used: "" | "Yes" | "No"; items: [{ item_code, item_name, uom, qty, rate }]; invoiceType: "" | "System" | "Cash";
+// customer / customerName: who the Sales Order of these products is for. Saving the case makes that Draft order
+// for accounts; stock is not affected.
 const used = defineModel("used", { type: String, default: "" })
 const items = defineModel("items", { type: Array, default: () => [] })
 const invoiceType = defineModel("invoiceType", { type: String, default: "" })
+const customer = defineModel("customer", { type: String, default: "" })
+const customerName = defineModel("customerName", { type: String, default: "" })
 const picking = ref(false)
+const pickingCustomer = ref(false)
+
+async function fetchCustomers(text) {
+  const rows = await call("kayanick_crm.orders_api.search_customers", { text })
+  return rows.map((r) => ({ value: r.name, label: r.customer_name || r.name, sub: r.customer_name !== r.name ? r.name : "" }))
+}
+function pickCustomer(r) { customer.value = r.value; customerName.value = r.label }
 const total = computed(() => itemsTotal(items.value))
 
 async function fetchItems(text) {
@@ -72,9 +82,17 @@ function step(row, d) { row.qty = Math.max(1, (Number(row.qty) || 0) + d) }
           </button>
         </div>
       </div>
-      <p class="text-xs text-gray-400">Accounts invoice the case from these prices. Stock is not affected.</p>
+      <div>
+        <p class="label">Customer<span class="text-red-500"> *</span></p>
+        <button type="button" class="input flex items-center text-left" @click="pickingCustomer = true">
+          <span class="min-w-0 flex-1 truncate" :class="customer ? '' : 'text-gray-400'" dir="auto">{{ customerName || customer || "Choose the customer" }}</span>
+          <Icon name="chevron-down" :size="16" class="text-gray-400" />
+        </button>
+      </div>
+      <p class="text-xs text-gray-400">Saving makes a draft Sales Order with these products for accounts. Stock is not affected.</p>
     </template>
 
+    <PickerSheet v-model:open="pickingCustomer" title="Customer" placeholder="Search customers" :fetcher="fetchCustomers" @pick="pickCustomer" />
     <PickerSheet v-model:open="picking" title="Used items" placeholder="Search items" multi
       :fetcher="fetchItems" :selected="items.map((x) => x.item_code)" @pick="pick" @unpick="unpick" />
   </div>

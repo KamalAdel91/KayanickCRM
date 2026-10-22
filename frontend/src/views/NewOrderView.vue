@@ -13,7 +13,7 @@ const router = useRouter()
 const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d) })()
 const f = reactive({
   customer: route.query.customer || "", customer_name: route.query.customer_name || route.query.customer || "",
-  delivery_date: tomorrow, items: [], notes: "",
+  delivery_date: tomorrow, invoice_type: "", items: [], notes: "",
 })
 const pickingCustomer = ref(false)
 const pickingItems = ref(false)
@@ -42,6 +42,7 @@ function step(row, d) { row.qty = Math.max(1, (Number(row.qty) || 0) + d) }
 const summary = computed(() => [
   { label: "Customer", value: f.customer_name },
   { label: "Delivery date", value: f.delivery_date },
+  { label: "Invoice type", value: f.invoice_type },
   { label: "Items", value: f.items.map((r) => `${r.item_name} × ${r.qty} @ ${price(r.rate)} = ${price(lineTotal(r))}`).join("\n") },
   { label: "Total", value: price(total.value) },
   { label: "Notes", value: f.notes },
@@ -52,6 +53,7 @@ function askSave() {
   error.value = ""
   if (!f.customer) return fail("Choose the customer")
   if (!f.delivery_date || f.delivery_date < localToday()) return fail("Choose a delivery date from today on")
+  if (!f.invoice_type) return fail("Choose the invoice type: System or Cash")
   if (!f.items.length) return fail("Add at least one item")
   if (f.items.some((r) => !(Number(r.qty) > 0))) return fail("Each item needs a quantity")
   if (f.items.some((r) => !(Number(r.rate) > 0))) return fail("Enter the price of each item")
@@ -62,7 +64,7 @@ async function save() {
   try {
     const r = await call("kayanick_crm.orders_api.create_order", {
       payload: JSON.stringify({
-        customer: f.customer, delivery_date: f.delivery_date, notes: f.notes,
+        customer: f.customer, delivery_date: f.delivery_date, invoice_type: f.invoice_type, notes: f.notes,
         items: f.items.map((r) => ({ item_code: r.item_code, qty: r.qty, rate: r.rate })),
       }),
     }, { post: true })
@@ -104,6 +106,15 @@ function back() {
           <div>
             <label class="label">Delivery date<span class="text-red-500"> *</span></label>
             <input v-model="f.delivery_date" type="date" class="input" :min="localToday()" />
+          </div>
+          <div>
+            <p class="label">Invoice type<span class="text-red-500"> *</span></p>
+            <div class="grid grid-cols-2 gap-2">
+              <button v-for="o in ['System', 'Cash']" :key="o" type="button" class="btn h-10 border"
+                :class="f.invoice_type === o ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-gray-200 bg-white'" @click="f.invoice_type = o">
+                <Icon v-if="f.invoice_type === o" name="check" :size="14" />{{ o }}
+              </button>
+            </div>
           </div>
         </div>
       </section>

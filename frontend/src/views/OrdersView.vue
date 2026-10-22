@@ -11,7 +11,7 @@ defineOptions({ name: "OrdersView" })
 
 const route = useRoute()
 const router = useRouter()
-const f = reactive({ status: "", employee: "" })
+const f = reactive({ status: "", employee: "", source: "" })
 const tabs = [{ label: "All", value: "" }, { label: "Waiting", value: "draft" }, { label: "Approved", value: "approved" }, { label: "Cancelled", value: "cancelled" }]
 const paged = usePaged("kayanick_crm.orders_api.get_orders", () => ({ ...f }))
 const { rows, loading, done, error, reload, more } = paged
@@ -52,10 +52,17 @@ onActivated(() => {
         <button v-for="t in tabs" :key="t.label" type="button" class="rounded-md py-1.5"
           :class="f.status === t.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'" @click="f.status = t.value">{{ t.label }}</button>
       </div>
-      <select v-if="team.length" v-model="f.employee" class="input" aria-label="Rep">
-        <option value="">All reps</option>
-        <option v-for="r in team" :key="r.user" :value="r.user">{{ r.name }}</option>
-      </select>
+      <div class="grid gap-2" :class="team.length ? 'grid-cols-2' : 'grid-cols-1'">
+        <select v-model="f.source" class="input" aria-label="Source">
+          <option value="">All sources</option>
+          <option value="Direct Order">Direct orders</option>
+          <option value="Case">From cases</option>
+        </select>
+        <select v-if="team.length" v-model="f.employee" class="input" aria-label="Rep">
+          <option value="">All reps</option>
+          <option v-for="r in team" :key="r.user" :value="r.user">{{ r.name }}</option>
+        </select>
+      </div>
       <div v-if="toast" class="toast"><Icon name="check" :size="16" />{{ toast }}</div>
       <div v-if="error" class="alert"><Icon name="alert" :size="16" /><span>{{ error }}</span></div>
 
@@ -72,6 +79,7 @@ onActivated(() => {
             <div class="min-w-0 flex-1">
               <p class="truncate font-medium" dir="auto">{{ o.customer_name }}</p>
               <p class="truncate text-xs text-gray-500">{{ [fmt(o.transaction_date), o.rep_name, money(o.grand_total) + " " + o.currency].filter(Boolean).join(" · ") }}</p>
+              <p class="truncate text-xs text-gray-400">{{ [o.kc_source === "Case" ? "From case " + o.kc_case : "Direct order", o.kc_invoice_type].filter(Boolean).join(" · ") }}</p>
             </div>
             <span class="badge" :class="badge(o)">{{ o.state }}</span>
             <Icon name="chevron-right" :size="16" class="text-gray-300" />

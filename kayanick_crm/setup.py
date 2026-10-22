@@ -6,13 +6,22 @@ MODULE = "KAYANICK CRM"
 SIDEBAR = "Kayanick CRM"
 
 
-# the rep who placed a Sales Order from the app: the app's lists and notifications follow it (perms.scope). Employee
-# User Permissions are ignored on it, so it changes nothing for the users of Sales Order in the Desk.
+# A Sales Order from the app: the rep who placed it (the app's lists and notifications follow it, see perms.scope),
+# where it came from (a rep's direct order, or the used products of an attended case) and its invoice type.
+# Employee User Permissions are ignored on kc_employee, so it changes nothing for Sales Order users in the Desk.
 CUSTOM_FIELDS = {
     "Sales Order": [
         {"fieldname": "kc_employee", "label": "Kayanick Rep", "fieldtype": "Link", "options": "Employee",
          "insert_after": "customer_name", "read_only": 1, "no_copy": 1, "in_standard_filter": 1,
          "ignore_user_permissions": 1, "description": "The rep who placed this order from the Kayanick CRM app"},
+        {"fieldname": "kc_source", "label": "Order Source", "fieldtype": "Select", "options": "\nDirect Order\nCase",
+         "insert_after": "kc_employee", "read_only": 1, "no_copy": 1, "in_standard_filter": 1, "in_list_view": 1,
+         "depends_on": "eval:doc.kc_source"},
+        {"fieldname": "kc_case", "label": "Kayanick Case", "fieldtype": "Link", "options": "KC Case",
+         "insert_after": "kc_source", "read_only": 1, "no_copy": 1, "depends_on": "eval:doc.kc_source=='Case'",
+         "description": "The attended case whose used products this order bills"},
+        {"fieldname": "kc_invoice_type", "label": "Invoice Type", "fieldtype": "Select", "options": "\nSystem\nCash",
+         "insert_after": "kc_case", "no_copy": 1, "in_standard_filter": 1, "depends_on": "eval:doc.kc_source"},
     ],
 }
 

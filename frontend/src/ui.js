@@ -30,13 +30,14 @@ export const chipOn = (badge) => CHIP[badge] || "chip-on"
 export const dot = (badge) => DOT[badge] || "bg-gray-400"
 
 // "used products" answer on an attended case: returns an error text or ""
-export function usedItemsError(used, items, invoiceType) {
+export function usedItemsError(used, items, invoiceType, customer) {
   if (used !== "Yes" && used !== "No") return "Did you use products in this case? Choose Yes or No"
   if (used === "No") return ""
   if (!items.length) return "Add the products that were used"
   if (items.some((r) => !(Number(r.qty) > 0))) return "Each used item needs a quantity"
   if (items.some((r) => !(Number(r.rate) > 0))) return "Enter the price of each used item"
   if (!invoiceType) return "Choose the invoice type: System or Cash"
+  if (!customer) return "Choose the customer of the Sales Order"
   return ""
 }
 export function usedItemsText(items) {

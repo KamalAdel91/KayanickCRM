@@ -5,9 +5,8 @@ Field sales CRM for Kayanick, built on Frappe / ERPNext v16.
 - **Visits**: hospital + doctors visits (a relationship level per doctor), purpose, outcome, products discussed, next action and GPS check-in.
 - **Cases**: hospital + doctors + products, notes and attachments, with a status (Planned / Attended / Cancelled) and a history of postponements and cancellations.
 - **Customer debt**: what each customer owes, the overdue amounts by age, and the invoices.
-- **Invoicing**: an attended case with used products carries a price for each item, a total and an invoice type
-  (System / Cash). Accounts invoice it and type the invoice number on the case.
-- **Orders**: a rep places a Sales Order for any customer. It is saved as a Draft for accounts to review.
+- **Orders**: Sales Orders from the app, saved as a Draft for accounts to review. A rep places one for any
+  customer, or a case makes one from its used products.
 - **Mobile web app** at `/KayanickCRM` (installable to the home screen).
 
 ## Who can do what (the role)
@@ -17,7 +16,7 @@ Field sales CRM for Kayanick, built on Frappe / ERPNext v16.
 | KC Rep | log visits and cases, place orders. Read hospitals, doctors and lists. |
 | KC Manager | also edit and delete visits and cases. Add hospitals, doctors and list values. |
 | KC Viewer | read only |
-| KC Accounts | invoice the cases' used products. Review and submit the reps' orders (also needs Sales User). |
+| KC Accounts | review and submit the Sales Orders the app makes (also needs Sales User). |
 | System Manager | everything, and reset passwords from the app |
 
 ERPNext's own roles (Sales Manager, Sales User, Stock User) give nothing in the app.
@@ -59,27 +58,25 @@ The Debt tab shows:
 - for each customer: the open invoices, the payments not yet matched to an invoice, and the last payments
 - a payment reminder, ready to send on WhatsApp
 
-## Invoicing a case
-
-1. The rep marks the case attended, adds the used products with their prices, and chooses the invoice type:
-   **System** or **Cash**. The case shows the total and gets the invoice status **To Invoice**.
-2. KC Accounts get a notification. The **Cases to Invoice** report (sidebar > Accounts) lists these cases with
-   their items, prices and totals.
-3. After the invoice is issued, a KC Accounts user types the **Invoice Number** on the case. The status becomes
-   **Invoiced**.
-
-An invoiced case cannot change until KC Accounts clear the invoice number. Only KC Accounts and System Manager can
-type the invoice number. Cases attended before this feature have no invoice status.
-
 ## Orders
 
-1. The rep opens **Orders > New order**, chooses any customer, the delivery date, the items, their quantities and
-   prices.
-2. The app saves a **Draft** Sales Order. The **Kayanick Rep** field on the order shows who placed it.
-3. KC Accounts get a notification. They review the order in the Desk (prices, taxes, warehouse) and submit it.
-4. The rep and their manager get a notification when the order is approved (submitted) or cancelled.
+Every Sales Order the app makes is a **Draft** with an **Invoice Type** (System / Cash). The **Kayanick Rep** field
+shows the rep, and the **Order Source** field shows where it came from:
 
-The rep, their manager, and the users who see everything see the order in the app.
+- **Direct Order**: the rep opens **Orders > New order** (or "New order" on a customer's debt page). The rep
+  chooses any customer, the delivery date, the invoice type, the items, their quantities and prices.
+- **Case**: the rep marks a case attended with used products. The rep enters the price of each product, the
+  invoice type and the customer. The case shows the total, and the **Kayanick Case** field on the order links back
+  to the case.
+
+While the order is a Draft, it changes with the case. If the case goes back to planned, the Draft is deleted.
+After accounts submit the order, the used products of the case cannot change.
+
+KC Accounts get a notification for each new order. They review it in the Desk (prices, taxes, warehouse) and
+submit it. Filter the Sales Order list by **Order Source** and **Invoice Type**. The rep and the rep's manager get a
+notification when the order is approved (submitted) or cancelled.
+
+The rep, the rep's manager, and the users who see everything see the order in the app.
 
 ## Notifications
 
@@ -94,8 +91,7 @@ A user who turns notifications off in **Notification Settings** gets none.
 | Positive visit / order expected | a rep logs the visit | everyone who sees the visit |
 | New case | a user adds a case | everyone who sees the case |
 | Case cancelled | a user cancels a planned case | everyone who sees the case |
-| Case to invoice | a rep marks a case attended with used products | KC Accounts |
-| New order | a rep places an order | everyone who sees the rep, and KC Accounts |
+| New order | a rep places an order, or a case with used products makes one | everyone who sees the rep, and KC Accounts |
 | Order approved / cancelled | KC Accounts submit or cancel the order | everyone who sees the rep |
 | Payment received / cancelled | a payment from a customer is submitted or cancelled | everyone who sees the customer |
 | Invoice overdue | every day at 8:00 | everyone who sees the customer |

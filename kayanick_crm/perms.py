@@ -1,8 +1,8 @@
 """Who can do what and who sees what in Kayanick CRM. Every other module asks here.
 
 - The role decides what a user can do (the DocType permissions): KC Rep logs visits, cases and orders, KC Manager
-  also edits, deletes and manages the lists, KC Viewer reads, KC Accounts invoices the cases and reviews the
-  orders, System Manager does everything.
+  also edits, deletes and manages the lists, KC Viewer reads, KC Accounts reviews and submits the Sales Orders
+  the app makes, System Manager does everything.
 - The scope decides whose records a user sees. It is Frappe's own User Permission on Employee: the user's Employee
   and everyone below it in Reports To. A KC Rep / KC Manager always has it: apply_scope adds it whenever their User
   or Employee is saved, and never removes one. KC Viewer and System Manager have none, so they see everything.
@@ -20,7 +20,7 @@ from frappe import _
 
 APP_ROLES = ("KC Rep", "KC Manager", "KC Viewer")
 FIELD_ROLES = ("KC Rep", "KC Manager")  # people who log visits and attend cases: limited to their team
-ACCOUNTS_ROLE = "KC Accounts"  # invoices the cases' used products and reviews the reps' orders
+ACCOUNTS_ROLE = "KC Accounts"  # reviews and submits the Sales Orders the app makes
 EVERYTHING_ROLES = ("System Manager", "KC Viewer", ACCOUNTS_ROLE)  # no team limit
 RECORD_DOCTYPES = ("KC Visit", "KC Case")  # the records that belong to an Employee
 

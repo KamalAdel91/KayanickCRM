@@ -9,9 +9,9 @@ notifications off (Notification Settings) gets none.
     Case cancelled                    a planned case is cancelled     everyone who sees the case
     Payment received / cancelled      a Payment Entry from a          everyone who sees the customer
                                       customer is submitted / cancelled
-    Case to invoice                   a case is attended with         KC Accounts
-                                      used products and an invoice type
-    New order                         a rep places a Sales Order      everyone who sees the rep, and KC Accounts
+    New order                         a rep places a Sales Order,     everyone who sees the rep, and KC Accounts
+                                      or a case with used products
+                                      makes one
     Order approved / cancelled        KC Accounts submit / cancel it  everyone who sees the rep
     Invoice overdue                   daily at 8:00                   everyone who sees the customer
     Good morning                      daily at 8:00                   each rep: their follow-ups and planned cases
@@ -182,27 +182,6 @@ def _case_cancelled_to_readers(name):
         notify(u, msg, "KC Case", c.name, row.done_by, title=title, body=body)
 
 
-def case_updated(doc, method=None):
-    if doc.invoice_status == "To Invoice" and doc.has_value_changed("invoice_status"):
-        frappe.enqueue("kayanick_crm.notify._case_to_accounts", name=doc.name, enqueue_after_commit=True)
-
-
-def _case_to_accounts(name):
-    """KC Accounts hear about a case to invoice: its invoice type and total."""
-    from kayanick_crm.debt_api import currency
-    from kayanick_crm.perms import user_of
-
-    c = frappe.get_doc("KC Case", name)
-    if c.invoice_status != "To Invoice":
-        return
-    by = user_of(c.employee) or c.owner
-    amount = _money(c.total_amount, currency())
-    msg = "{0} to invoice ({1}): {2} · {3}".format(c.name, c.invoice_type, c.hospital, amount)
-    body = " · ".join(x for x in (c.invoice_type, c.hospital, c.employee_name, amount) if x)
-    for u in accounts_users() - {by}:
-        notify(u, msg, "KC Case", c.name, by, title="🧾 Case to invoice", body=body)
-
-
 # the previous release queued jobs under these names: kept so a job waiting during a deploy still runs
 _visit_to_managers = _visit_to_readers
 _case_to_managers = _case_to_readers
@@ -290,6 +269,7 @@ _payment_to_rep = _payment_to_readers  # the previous release's name, for jobs q
 
 ORDER_EVENTS = {  # event: (title, what happened)
     "new": ("📦 New order", "{rep} placed an order for {customer}: {amount}"),
+    "case": ("📦 New order from a case", "{rep}'s case {case}: order for {customer}: {amount}"),
     "approved": ("✅ Order approved", "Order {name} for {customer} was approved: {amount}"),
     "cancelled": ("❌ Order cancelled", "Order {name} for {customer} was cancelled"),
 }
@@ -321,11 +301,13 @@ def _order_to_readers(name, event="new"):
     so = frappe.get_doc("Sales Order", name)
     rep = frappe.db.get_value("Employee", so.kc_employee, "employee_name") or so.kc_employee
     amount = _money(so.grand_total, so.currency)
+    if event == "new" and so.kc_source == "Case":
+        event = "case"
     title, what = ORDER_EVENTS[event]
-    msg = what.format(rep=rep, customer=so.customer_name or so.customer, amount=amount, name=so.name)
+    msg = what.format(rep=rep, customer=so.customer_name or so.customer, amount=amount, name=so.name, case=so.kc_case)
     users = order_readers(so.kc_employee)
     actor = so.modified_by
-    if event == "new":
+    if event in ("new", "case"):
         users |= accounts_users()
         actor = so.owner
     for u in users - {actor}:

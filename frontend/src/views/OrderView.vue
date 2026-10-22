@@ -47,6 +47,15 @@ function back() {
             </div>
             <span class="badge" :class="badge(o)">{{ o.state }}</span>
           </div>
+          <router-link v-if="o.case" :to="{ name: 'case-detail', params: { name: o.case } }" class="flex items-center gap-2 px-4 py-3 text-sm active:bg-gray-50">
+            <span class="flex-1"><span class="block text-xs text-gray-500">From case</span>{{ o.case }}</span>
+            <span v-if="o.invoice_type" class="badge badge-blue">{{ o.invoice_type }}</span>
+            <Icon name="chevron-right" :size="16" class="text-gray-300" />
+          </router-link>
+          <div v-else class="flex items-center gap-2 px-4 py-3 text-sm">
+            <span class="flex-1"><span class="block text-xs text-gray-500">Source</span>Direct order</span>
+            <span v-if="o.invoice_type" class="badge badge-blue">{{ o.invoice_type }}</span>
+          </div>
         </div>
 
         <section>

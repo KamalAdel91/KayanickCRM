@@ -118,9 +118,10 @@ def get_case(name: str):
         "attended_notes": (doc.attended_notes or "") if attended else "",
         "used_items": [{"item_code": r.item_code, "item_name": r.item_name, "qty": r.qty, "uom": r.uom,
                         "rate": r.rate, "amount": r.amount} for r in doc.used_items],
-        "invoice_type": doc.invoice_type or "", "total_amount": doc.total_amount,
-        "invoice_status": doc.invoice_status or "", "invoice_number": doc.invoice_number or "",
-        "currency": currency(),
+        "invoice_type": doc.invoice_type or "", "total_amount": doc.total_amount, "currency": currency(),
+        "customer": doc.customer or "",
+        "customer_name": frappe.db.get_value("Customer", doc.customer, "customer_name") if doc.customer else "",
+        "sales_order": doc.sales_order or "", "order_state": _order_state(doc.sales_order),
         "attachments": attachments("KC Case", doc.name),
         "can_delete": bool(frappe.has_permission("KC Case", "delete", doc=doc)),
         "can_edit": can_edit,
@@ -197,9 +198,10 @@ def _used_rows(items):
             for r in (items or []) if r.get("item_code")]
 
 
-def _apply_used(doc, used_products, used_items, attended_by=None, attended_notes=None, invoice_type=None):
-    """Who attended, the used products with their prices and invoice type, and the notes, for a case being saved
-    as attended (KCCase.validate checks them)."""
+def _apply_used(doc, used_products, used_items, attended_by=None, attended_notes=None, invoice_type=None,
+                customer=None):
+    """Who attended, the used products with their prices, the invoice type and customer of their Sales Order, and
+    the notes, for a case being saved as attended (KCCase.validate checks them)."""
     doc.employee = _attendee(attended_by)
     doc.attended_notes = (attended_notes or "").strip()
     if used_products not in ("Yes", "No"):
@@ -207,6 +209,7 @@ def _apply_used(doc, used_products, used_items, attended_by=None, attended_notes
     doc.used_products = used_products
     doc.set("used_items", _used_rows(used_items) if used_products == "Yes" else [])
     doc.invoice_type = invoice_type if used_products == "Yes" else None
+    doc.customer = customer if used_products == "Yes" else None
 
 
 def _attendee(user):
@@ -236,10 +239,12 @@ def search_attendees(text: str | None = ""):
 
 @frappe.whitelist()
 def search_items(text: str | None = ""):
-    """ERPNext items for the 'used products' picker (info only, no stock effect)."""
+    """ERPNext items for the 'used products' picker: stock items that can be sold (their Sales Order bills them;
+    stock is not touched)."""
     _check_role()
     text = (text or "").strip()[:60]
-    kw = dict(filters={"disabled": 0, "has_variants": 0, "is_stock_item": 1}, fields=["name", "item_name", "stock_uom"],
+    kw = dict(filters={"disabled": 0, "has_variants": 0, "is_stock_item": 1, "is_sales_item": 1},
+              fields=["name", "item_name", "stock_uom"],
               order_by="item_name asc", limit_page_length=50)
     if text:
         kw["or_filters"] = [["item_name", "like", "%" + text + "%"], ["name", "like", "%" + text + "%"]]
@@ -248,14 +253,14 @@ def search_items(text: str | None = ""):
 
 @frappe.whitelist(methods=["POST"])
 def set_attended(name: str, attended=1, used_products=None, used_items=None, attended_by=None, attended_notes=None,
-                 invoice_type: str | None = None):
+                 invoice_type: str | None = None, customer: str | None = None):
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")  # on the case as it is now
     if doc.status == "Cancelled":
         frappe.throw(_("This case is cancelled. Reopen it first"))
     if cint(attended):
         doc.status = "Attended"
-        _apply_used(doc, used_products, used_items, attended_by, attended_notes, invoice_type)
+        _apply_used(doc, used_products, used_items, attended_by, attended_notes, invoice_type, customer)
     else:
         doc.status = "Planned"
     doc.flags.handled_by = frappe.session.user
@@ -289,9 +294,18 @@ def create_case(payload):
     })
     if case.status == "Attended":
         _apply_used(case, data.get("used_products"), data.get("used_items"), data.get("attended_by"),
-                    data.get("attended_notes"), data.get("invoice_type"))
+                    data.get("attended_notes"), data.get("invoice_type"), data.get("customer"))
     case.flags.handled_by = frappe.session.user
     # Create permission was checked above; the attendee may be someone outside this user's team
     case.insert(ignore_permissions=True)
     _attach_files("KC Case", case.name, data.get("files"))
     return {"case": case.name, "can_read": bool(frappe.has_permission("KC Case", "read", doc=case.name))}
+
+
+def _order_state(name):
+    if not name:
+        return ""
+    from kayanick_crm.orders_api import state
+
+    row = frappe.db.get_value("Sales Order", name, ["docstatus", "status"], as_dict=True)
+    return state(row) if row else ""

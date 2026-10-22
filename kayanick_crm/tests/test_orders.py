@@ -1,4 +1,4 @@
-"""Invoicing a case's used products (invoice type, prices, invoice number) and the reps' Sales Orders."""
+"""The Sales Orders the app makes: from an attended case's used products, and a rep's direct order."""
 from unittest.mock import patch
 
 import frappe
@@ -28,57 +28,65 @@ class OrdersTestCase(IntegrationTestCase):
         return sent
 
 
-class TestCaseInvoice(OrdersTestCase):
-    def attend(self, case, rate=150, invoice_type="Cash", qty=2):
+class TestCaseOrder(OrdersTestCase):
+    def attend(self, case, rate=150, invoice_type="Cash", qty=2, customer=None):
         with as_user(self.t.rep_a):
             set_attended(case, 1, "Yes", [{"item_code": self.item, "qty": qty, "rate": rate}], None, "Done",
-                         invoice_type)
+                         invoice_type, self.customer if customer is None else customer)
 
-    def test_prices_total_and_invoice_type(self):
+    def setUp(self):
+        super().setUp()
+        self.customer = make_customer("Hospital")
+
+    def test_attending_with_products_makes_a_draft_order(self):
         case = self.t.case(self.t.rep_a)
-        with self.assertRaises(frappe.ValidationError):
-            self.attend(case, invoice_type=None)
-        with self.assertRaises(frappe.ValidationError):
-            self.attend(case, rate=0)
+        for missing in ({"invoice_type": None}, {"rate": 0}, {"customer": ""}):
+            with self.assertRaises(frappe.ValidationError):
+                self.attend(case, **missing)
         self.attend(case)
         doc = frappe.get_doc("KC Case", case)
-        self.assertEqual((doc.invoice_type, doc.total_amount, doc.invoice_status), ("Cash", 300, "To Invoice"))
-        self.assertEqual(doc.used_items[0].amount, 300)
+        self.assertEqual((doc.invoice_type, doc.total_amount, doc.customer), ("Cash", 300, self.customer))
+        so = frappe.get_doc("Sales Order", doc.sales_order)
+        self.assertEqual((so.docstatus, so.kc_source, so.kc_case, so.kc_invoice_type, so.kc_employee, so.customer),
+                         (0, "Case", case, "Cash", self.t.ea, self.customer))
+        self.assertEqual([(i.item_code, i.qty, i.rate) for i in so.items], [(self.item, 2, 150)])
 
-    def test_accounts_hear_and_invoice_it(self):
-        t = self.t
-        case = t.case(t.rep_a)
+    def test_draft_follows_the_case(self):
+        case = self.t.case(self.t.rep_a)
+        self.attend(case)
+        name = frappe.db.get_value("KC Case", case, "sales_order")
+        self.attend(case, rate=180, qty=1, invoice_type="System")  # same order, new figures
+        so = frappe.get_doc("Sales Order", name)
+        self.assertEqual((so.kc_invoice_type, so.items[0].qty, so.items[0].rate), ("System", 1, 180))
+        with as_user(self.t.rep_a):
+            set_attended(case, 0)  # back to planned: the draft goes
+        self.assertFalse(frappe.db.exists("Sales Order", name))
+        self.assertIsNone(frappe.db.get_value("KC Case", case, "sales_order"))
+
+    def test_approved_order_locks_the_case(self):
+        case = self.t.case(self.t.rep_a)
+        self.attend(case)
+        name = frappe.db.get_value("KC Case", case, "sales_order")
+        frappe.db.set_value("Sales Order", name, "docstatus", 1)  # approved by accounts
+        with self.assertRaises(frappe.ValidationError):
+            self.attend(case, rate=999)
+        with as_user(self.t.rep_a), self.assertRaises(frappe.ValidationError):
+            set_attended(case, 0)
+
+    def test_accounts_hear_about_it(self):
+        case = self.t.case(self.t.rep_a)
         self.attend(case)
         sent = self.capture()
-        notify._case_to_accounts(case)
+        notify._order_to_readers(frappe.db.get_value("KC Case", case, "sales_order"), "new")
         self.assertIn(self.accounts, sent.users())
-        self.assertFalse({t.rep_a, t.rep_b, t.manager} & sent.users())
-
-        # a rep can't type the invoice number (permlevel 1): Frappe drops it
-        with as_user(t.rep_a):
-            doc = frappe.get_doc("KC Case", case)
-            doc.invoice_number = "SINV-REP"
-            doc.save()
-        self.assertEqual(frappe.db.get_value("KC Case", case, "invoice_status"), "To Invoice")
-
-        with as_user(self.accounts):
-            doc = frappe.get_doc("KC Case", case)
-            doc.invoice_number = "SINV-0001"
-            doc.save()
-        doc.reload()
-        self.assertEqual((doc.invoice_status, doc.invoiced_by), ("Invoiced", self.accounts))
-
-        # once invoiced, the prices are locked until the number is cleared
-        with as_user(t.rep_a), self.assertRaises(frappe.ValidationError):
-            doc = frappe.get_doc("KC Case", case)
-            doc.used_items[0].rate = 200
-            doc.save()
+        self.assertIn("case " + case, sent.by_user[self.accounts][0])
+        self.assertNotIn(self.t.rep_a, sent.users())
 
 
 class TestOrders(OrdersTestCase):
     def order(self, user, customer, **row):
         with as_user(user):
-            return create_order({"customer": customer, "notes": "Urgent",
+            return create_order({"customer": customer, "notes": "Urgent", "invoice_type": "System",
                                  "items": [{"item_code": self.item, "qty": 3, "rate": 100, **row}]})["name"]
 
     def test_rep_orders_any_customer_as_draft(self):
@@ -86,7 +94,8 @@ class TestOrders(OrdersTestCase):
         customer = make_customer("Any")  # not the rep's customer
         name = self.order(t.rep_a, customer)
         so = frappe.get_doc("Sales Order", name)
-        self.assertEqual((so.docstatus, so.kc_employee, so.owner, so.total), (0, t.ea, t.rep_a, 300))
+        self.assertEqual((so.docstatus, so.kc_employee, so.owner, so.total, so.kc_source, so.kc_invoice_type),
+                         (0, t.ea, t.rep_a, 300, "Direct Order", "System"))
         with self.assertRaises(frappe.ValidationError):
             self.order(t.rep_a, customer, rate=0)
         for user in (t.unlinked, t.viewer):
@@ -100,7 +109,8 @@ class TestOrders(OrdersTestCase):
             session = frappe.local.session
             session.sid, session.data = "test-sid", frappe._dict(csrf_token="test-token")
             frappe.local.form_dict = frappe._dict(cmd="kayanick_crm.orders_api.create_order")
-            create_order({"customer": customer, "items": [{"item_code": self.item, "qty": 1, "rate": 10}]})
+            create_order({"customer": customer, "invoice_type": "Cash",
+                          "items": [{"item_code": self.item, "qty": 1, "rate": 10}]})
             self.assertEqual((frappe.session.user, session.sid, session.data.csrf_token, frappe.local.form_dict.cmd),
                              (t.rep_a, "test-sid", "test-token", "kayanick_crm.orders_api.create_order"))
 
