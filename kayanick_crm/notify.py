@@ -358,7 +358,7 @@ def unread_count():
 
 
 @frappe.whitelist(methods=["POST"])
-def mark_read(name=None):
+def mark_read(name: str | None = None):
     filters, or_filters = _ours(frappe.session.user, read=0)
     if name:
         filters["name"] = name

@@ -137,7 +137,7 @@ def debts(customers, reps):
 
 
 @frappe.whitelist()
-def get_debts(employee=None):
+def get_debts(employee: str | None = None):
     """Customers that owe money, biggest first, with the totals and aging. `employee` narrows to one rep's
     customers (within what the user sees)."""
     _check_app_user()
@@ -162,7 +162,7 @@ def debt_summary(user=None):
 
 
 @frappe.whitelist()
-def get_customer_debt(customer):
+def get_customer_debt(customer: str):
     """One customer's open invoices, unallocated payments and last payments received."""
     _check_app_user()
     customers, reps = visible_customers()
@@ -228,7 +228,7 @@ def _settled_by(name):
 
 
 @frappe.whitelist()
-def get_invoice(name):
+def get_invoice(name: str):
     """One invoice: items, taxes, payment schedule and what was paid against it."""
     doc = _invoice(name)
     day = getdate(today())
@@ -252,7 +252,7 @@ def get_invoice(name):
 
 
 @frappe.whitelist()
-def invoice_pdf(name):
+def invoice_pdf(name: str):
     """The printed invoice as a PDF. Reps can't print Sales Invoices themselves, so the print permission check is
     skipped here, after _invoice checked the customer is his."""
     doc = _invoice(name)

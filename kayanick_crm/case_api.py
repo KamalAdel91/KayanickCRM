@@ -94,7 +94,7 @@ def _attach_files(doctype, name, files):
 
 
 @frappe.whitelist()
-def get_case(name):
+def get_case(name: str):
     from kayanick_crm.mobile import doctors_text
 
     doc = frappe.get_doc("KC Case", name)
@@ -137,7 +137,7 @@ def _log(doc, action, reason=None, **extra):
 
 
 @frappe.whitelist(methods=["POST"])
-def postpone_case(name, case_date, case_time, reason=None):
+def postpone_case(name: str, case_date: str | None, case_time: str | None, reason: str | None = None):
     """Moves a planned case to a new date/time and keeps the old one in the history."""
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")
@@ -158,7 +158,7 @@ def postpone_case(name, case_date, case_time, reason=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def cancel_case(name, reason=None):
+def cancel_case(name: str, reason: str | None = None):
     """Cancels a planned case (kept for history, hidden from Planned / Today / reminders)."""
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")
@@ -174,7 +174,7 @@ def cancel_case(name, reason=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def reopen_case(name):
+def reopen_case(name: str):
     """Puts a cancelled case back to Planned."""
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")
@@ -215,7 +215,7 @@ def _attendee(user):
 
 
 @frappe.whitelist()
-def search_attendees(text=""):
+def search_attendees(text: str | None = ""):
     """Reps and managers (KC Rep / KC Manager with an active Employee) can be picked as the one who attended."""
     _check_role()
     users = set(field_users())
@@ -229,7 +229,7 @@ def search_attendees(text=""):
 
 
 @frappe.whitelist()
-def search_items(text=""):
+def search_items(text: str | None = ""):
     """ERPNext items for the 'used products' picker (info only, no stock effect)."""
     _check_role()
     text = (text or "").strip()[:60]
@@ -241,7 +241,7 @@ def search_items(text=""):
 
 
 @frappe.whitelist(methods=["POST"])
-def set_attended(name, attended=1, used_products=None, used_items=None, attended_by=None, attended_notes=None):
+def set_attended(name: str, attended=1, used_products=None, used_items=None, attended_by=None, attended_notes=None):
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")  # on the case as it is now
     if doc.status == "Cancelled":

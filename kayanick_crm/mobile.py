@@ -166,7 +166,7 @@ def _doctor_display(text):
 
 
 @frappe.whitelist(methods=["POST"])
-def create_hospital(hospital_name, area=None, hospital_type=None):
+def create_hospital(hospital_name: str | None, area: str | None = None, hospital_type: str | None = None):
     frappe.has_permission("KC Hospital", "create", throw=True)
     name = " ".join((hospital_name or "").split())
     if not name:
@@ -179,7 +179,7 @@ def create_hospital(hospital_name, area=None, hospital_type=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def create_doctor(doctor_name, relationship_level=None):
+def create_doctor(doctor_name: str | None, relationship_level: str | None = None):
     frappe.has_permission("KC Doctor", "create", throw=True)
     name = _doctor_display(doctor_name)
     if not name:
@@ -246,7 +246,7 @@ def get_today():
 
 
 @frappe.whitelist()
-def search(text=""):
+def search(text: str | None = ""):
     text = (text or "").strip()[:60]
     like = "%" + text + "%"
     hosp = dict(fields=["name", "area", "hospital_type", "last_visit", "next_visit"],
@@ -260,13 +260,13 @@ def search(text=""):
 
 
 @frappe.whitelist()
-def get_doctor(name):
+def get_doctor(name: str):
     rows = frappe.get_list("KC Doctor", filters={"name": name}, fields=["name", "doctor_name", "relationship_level"])
     return rows[0] if rows else None
 
 
 @frappe.whitelist()
-def get_profile(doctype, name):
+def get_profile(doctype: str, name: str):
     """Hospital or doctor card with its visits and cases (visits/cases follow the usual team visibility)."""
     if doctype not in ("KC Hospital", "KC Doctor"):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -374,7 +374,7 @@ def get_visits(args=None):
 
 
 @frappe.whitelist()
-def get_visit(name):
+def get_visit(name: str):
     from kayanick_crm.case_api import attachments
 
     doc = frappe.get_doc("KC Visit", name)
@@ -395,7 +395,7 @@ def get_visit(name):
 
 
 @frappe.whitelist(methods=["POST"])
-def delete_record(doctype, name):
+def delete_record(doctype: str, name: str):
     # frappe.delete_doc checks the Delete permission (KC Manager)
     if doctype not in ("KC Visit", "KC Case"):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
