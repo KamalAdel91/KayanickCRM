@@ -4,7 +4,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, get_fullname, get_time, getdate, now, today
 
-from kayanick_crm.perms import field_users, require_employee, user_of
+from kayanick_crm.perms import field_users, require_employee, require_scope, user_of
 
 
 def _check_role():
@@ -169,7 +169,7 @@ def cancel_case(name, reason=None):
     _log(doc, "Cancelled", reason)
     doc.status = "Cancelled"
     doc.save()
-    frappe.enqueue("kayanick_crm.notify._case_cancelled_to_managers", name=doc.name, enqueue_after_commit=True)
+    frappe.enqueue("kayanick_crm.notify._case_cancelled_to_readers", name=doc.name, enqueue_after_commit=True)
     return "ok"
 
 
@@ -263,6 +263,7 @@ def set_attended(name, attended=1, used_products=None, used_items=None, attended
 def create_case(payload):
     _check_role()
     frappe.has_permission("KC Case", "create", throw=True)
+    require_scope()
     from kayanick_crm.mobile import doctor_rows
 
     data = json.loads(payload) if isinstance(payload, str) else dict(payload or {})

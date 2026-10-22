@@ -44,13 +44,13 @@ class KCCase(Document):
 def share_with_handlers(case, employee, users):
     """A case attended by someone else moves to that person's team. Whoever created it, and whoever marked it
     attended, keep read access to it through a share (only when they couldn't see it otherwise)."""
-    from kayanick_crm.perms import visible_employees
+    from kayanick_crm.perms import scope
 
     attendee = frappe.db.get_value("Employee", employee, "user_id")
     for user in users:
         if not user or user in ("Administrator", "Guest") or user == attendee:
             continue
-        allowed = visible_employees(user)
+        allowed = scope(user)
         if allowed is None or employee in allowed:
             continue  # sees it anyway
         if frappe.db.exists("DocShare", {"share_doctype": "KC Case", "share_name": case, "user": user}):

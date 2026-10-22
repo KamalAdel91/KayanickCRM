@@ -5,7 +5,7 @@ from frappe import _
 from frappe.utils import add_days, cint, get_first_day, get_fullname, get_last_day, getdate, now, today
 
 from kayanick_crm.notify import unread
-from kayanick_crm.perms import employee_of, field_users, require_employee, visible_employees
+from kayanick_crm.perms import access_problem, employee_of, field_users, require_employee, scope
 
 VISIT_FIELDS = (
     "hospital", "visit_purpose", "visit_outcome", "notes", "next_action", "has_next_visit",
@@ -242,7 +242,7 @@ def get_today():
     from kayanick_crm.debt_api import debt_summary
 
     return {"user": get_fullname(user), "today": today(), "stats": stats, "due": due, "cases": cases, "recent": recent,
-            "unread": unread(user), "debt": debt_summary(user)}
+            "unread": unread(user), "debt": debt_summary(user), "problem": access_problem(user)}
 
 
 @frappe.whitelist()
@@ -343,7 +343,7 @@ def get_team():
     """Reps whose records the current user can see (for the rep filter). Empty for a plain rep.
     `user` carries the rep's Employee (the key name is kept for the app)."""
     reps = field_users().values()
-    allowed = visible_employees()
+    allowed = scope()
     reps = [e for e in reps if allowed is None or e in allowed]
     if len(reps) <= 1:
         return []

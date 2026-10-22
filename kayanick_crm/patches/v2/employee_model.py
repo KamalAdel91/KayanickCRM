@@ -14,7 +14,6 @@ relationship level per doctor, and a status + history on cases.
 Runs after the new schema is synced: the old columns are still in the tables, so they are read with SQL.
 """
 import frappe
-from frappe.permissions import add_user_permission
 from frappe.utils.nestedset import rebuild_tree
 
 OLD_REP_ROLE = "Sales Rep"
@@ -165,7 +164,9 @@ def _emp_name(employee):
 
 
 def _restrict_reps(emp_by_user):
-    """A plain rep sees his own records only: Create User Permission on his Employee."""
+    """A plain rep sees their own records only: Create User Permission on their Employee (perms.apply_scope)."""
+    from kayanick_crm.perms import apply_scope
+
     others = _users_with("KC Manager") | _users_with("KC Viewer") | _users_with("System Manager")
     for user in sorted(_users_with("KC Rep") - others):
         if not frappe.db.get_value("User", user, "enabled"):
@@ -173,15 +174,11 @@ def _restrict_reps(emp_by_user):
         employee = emp_by_user.get(user)
         if not employee:
             say("WARNING: {0} has KC Rep but no active Employee with this User ID: "
-                "he sees every visit and case until one is linked".format(user))
+                "they see nothing until one is linked".format(user))
             continue
-        company, ticked = frappe.db.get_value("Employee", employee, ["company", "create_user_permission"])
-        if not ticked:
-            frappe.db.set_value("Employee", employee, "create_user_permission", 1, update_modified=False)
+        if not frappe.db.get_value("Employee", employee, "create_user_permission"):
             say("Create User Permission ticked on {0} ({1})".format(_emp_name(employee), user))
-        add_user_permission("Employee", employee, user, ignore_permissions=True)
-        if company:
-            add_user_permission("Company", company, user, ignore_permissions=True)
+        apply_scope(user)
 
 
 def _drop_sales_person_permissions():

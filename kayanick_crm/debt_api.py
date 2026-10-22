@@ -1,12 +1,8 @@
 """Customer debt for the mobile app.
 
-A customer belongs to the rep in his Sales Team (Customer > Sales Team > Sales Person, whose Employee is the rep).
-
-Who sees which customers:
-- A rep (no KC Manager / KC Viewer / System Manager role) sees only his own customers, whatever his User
-  Permissions say. A rep with no Employee sees none.
-- Everyone else follows the Employee rule of visits and cases (see perms.py): a manager with Create User Permission
-  sees his own and his team's customers; users without it see every customer, including the ones with no rep.
+A customer belongs to the rep in the customer's Sales Team (Customer > Sales Team > Sales Person, whose Employee is
+the rep). Whoever sees the rep's visits and cases sees the rep's customers (perms.scope): a rep their own, a manager
+their team's, KC Viewer / System Manager every customer, including the ones with no rep.
 
 Reps have no permission on Sales Invoice / Payment Entry, so the figures are read here, limited to those customers.
 """
@@ -14,9 +10,8 @@ import frappe
 from frappe import _
 from frappe.utils import add_days, date_diff, flt, getdate, today
 
-from kayanick_crm.perms import employee_of, is_app_user, visible_employees
+from kayanick_crm.perms import is_app_user, scope
 
-BEYOND_OWN_ROLES = ("System Manager", "KC Manager", "KC Viewer")
 AGING = (("1-30", 30), ("31-60", 60), ("61-90", 90), ("90+", None))  # days overdue
 DUE_SOON_DAYS = 7
 
@@ -40,13 +35,9 @@ def customer_reps():
 
 
 def visible_customers(user=None):
-    """(customers the user may see or None for all, {customer: Employee})."""
-    user = user or frappe.session.user
+    """(customers the user may see or None for all, {customer: Employee}): those of the reps in the user's scope."""
     reps = customer_reps()
-    if user != "Administrator" and not set(frappe.get_roles(user)) & set(BEYOND_OWN_ROLES):
-        me = employee_of(user)
-        return {c for c, e in reps.items() if me and e == me}, reps
-    allowed = visible_employees(user)
+    allowed = scope(user or frappe.session.user)
     if allowed is None:
         return None, reps
     return {c for c, e in reps.items() if e in allowed}, reps
