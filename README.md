@@ -4,43 +4,94 @@ Field sales CRM for Kayanick, built on Frappe / ERPNext v16.
 
 - **Visits**: hospital + doctors visits (a relationship level per doctor), purpose, outcome, products discussed, next action and GPS check-in.
 - **Cases**: hospital + doctors + products, notes and attachments, with a status (Planned / Attended / Cancelled) and a history of postponements and cancellations.
+- **Customer debt**: what each customer owes, the overdue amounts by age, and the invoices.
 - **Mobile web app** at `/KayanickCRM` (installable to the home screen).
 
-## Who can do what (roles)
+## Who can do what (the role)
 
 | Role | Can |
 |---|---|
-| KC Rep | log his visits and cases; read hospitals, doctors and lists |
-| KC Manager | also edit and delete visits and cases, add hospitals, doctors and list values |
+| KC Rep | log visits and cases. Read hospitals, doctors and lists. |
+| KC Manager | also edit and delete visits and cases. Add hospitals, doctors and list values. |
 | KC Viewer | read only |
 | System Manager | everything, and reset passwords from the app |
 
 ERPNext's own roles (Sales Manager, Sales User, Stock User) give nothing in the app.
 
-## Who sees what (the Employee)
+## Who sees what (the scope)
 
-Visits and cases carry an **Employee**: the rep who made the visit, or whoever attended the case.
+All the rules are in `kayanick_crm/perms.py`. The lists, the Today screen, the debt, the reports and the
+notifications all use them.
 
-- A user whose Employee has **Create User Permission** ticked sees his own records and those of everyone below
-  him in **Reports To**. That is every rep.
-- A user without it (owners, managers who see everything, viewers, admins) sees everything.
-- A **planned** case has no Employee yet, so the whole team sees it. Once attended it belongs to whoever attended
-  it; the rep who planned it (and whoever marked it attended) keep read access.
-- Keep **Apply Strict User Permissions** (System Settings) off, or planned cases disappear for the reps.
+Visits and cases carry an **Employee**: the rep who made the visit, or the person who attended the case.
 
-**Customer debt** (Debt tab). A customer belongs to the rep in his **Sales Team** (Customer > Sales Team >
-Sales Person, with the rep's Employee on the Sales Person).
+| Role | Sees |
+|---|---|
+| KC Rep | their own records, and the records of everyone below them in **Reports To** |
+| KC Manager | their own records and their team's: everyone below them in **Reports To** |
+| KC Viewer, System Manager | everything |
 
-- A **KC Rep** sees only his own customers, whatever his User Permissions say.
-- KC Manager / KC Viewer / System Manager follow the Employee rule above (team or everything). Customers with no
-  Sales Team appear only for users who see everything.
-- The screen shows the total owed, overdue by age, what falls due this week, and per customer the open invoices,
-  payments not yet matched and the last payments, with a ready-made payment reminder to send on WhatsApp.
-- Notifications: an invoice that became overdue (rep + his managers, every morning), a payment received from his
-  customer, and a weekly overdue summary on Sunday morning.
+- The scope is Frappe's User Permission on Employee. ERPNext makes it when **Create User Permission** is ticked on
+  the user's Employee.
+- ERPNext ticks this box on every new Employee.
+- For a KC Rep or KC Manager, the app keeps the box ticked. If someone unticks it, the app ticks it again when the
+  User or the Employee is saved.
+- To let a manager see everything, give the manager the KC Viewer role too.
+- The app never unticks the box. Untick it yourself for a KC Viewer or a System Manager who has an Employee.
+- A KC Rep or KC Manager without an active Employee sees nothing. The Today screen tells them why.
+- A **planned** case has no Employee yet, so all reps see it. After a person attends it, the case belongs to that
+  person. The rep who planned it, and the person who marked it attended, can still read it.
+- Keep **Apply Strict User Permissions** (System Settings) off. If it is on, the reps do not see planned cases.
 
-The **KC Access** report (sidebar > Settings) lists every user with what he sees and flags mistakes. From the
-terminal: `bench --site <site> execute kayanick_crm.access.check`
+### Customer debt
+
+A customer belongs to the rep in the customer's **Sales Team** (Customer > Sales Team > Sales Person, with the rep's
+Employee on the Sales Person). A user who sees the rep's records also sees the rep's customers. Only KC Viewer and
+System Manager see the customers that have no rep.
+
+The Debt tab shows:
+
+- the total owed, the overdue amounts by age, and what falls due this week
+- for each customer: the open invoices, the payments not yet matched to an invoice, and the last payments
+- a payment reminder, ready to send on WhatsApp
+
+## Notifications
+
+A notification shows in the app and in the Desk bell. It also goes to the phone when **Enable Push Notification
+Relay** is on.
+
+A notification goes to the users who can see the record or the customer. The user who caused it does not get it.
+A user who turns notifications off in **Notification Settings** gets none.
+
+| Notification | When | Goes to |
+|---|---|---|
+| Positive visit / order expected | a rep logs the visit | everyone who sees the visit |
+| New case | a user adds a case | everyone who sees the case |
+| Case cancelled | a user cancels a planned case | everyone who sees the case |
+| Payment received / cancelled | a payment from a customer is submitted or cancelled | everyone who sees the customer |
+| Invoice overdue | every day at 8:00 | everyone who sees the customer |
+| Good morning | every day at 8:00 | each rep: their follow-ups and planned cases |
+| Overdue debt this week | Sundays at 8:00 | each user: the customers they see |
+
+If the scheduler stops, the next overdue alert also tells about the invoices that became overdue on the missed
+days, up to 7 days back.
+
+## Check the setup
+
+The **KC Access** report (sidebar > Settings) lists every user, what each user sees, and what is set up wrong.
+From the terminal:
+
+```bash
+bench --site <site> execute kayanick_crm.access.check
+```
+
+## Add a rep
+
+1. Make a **User** with the **KC Rep** role.
+2. Make an **Employee** with that user in **User ID** and the rep's manager in **Reports To**.
+
+The rep then sees their own visits, cases and customers, and the planned cases. The manager sees the rep's records
+and gets the rep's notifications.
 
 ## Install
 
@@ -51,12 +102,19 @@ bench --site <site> install-app kayanick_crm
 
 Requires ERPNext.
 
-## Adding a rep
+## Tests
 
-1. **User** with the **KC Rep** role.
-2. **Employee** with that user in **User ID** and his manager in **Reports To** (Create User Permission stays ticked).
+On a test site that you can discard:
 
-That's all: he sees his own visits and cases plus the planned ones, and his manager gets his notifications.
+```bash
+bench --site <test-site> run-tests --app kayanick_crm
+```
+
+On a site with real data, this command writes nothing. It skips the commits and rolls everything back:
+
+```bash
+bench --site <site> execute kayanick_crm.tests.run.run
+```
 
 ## Mobile app development
 
