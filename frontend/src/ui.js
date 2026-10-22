@@ -30,15 +30,24 @@ export const chipOn = (badge) => CHIP[badge] || "chip-on"
 export const dot = (badge) => DOT[badge] || "bg-gray-400"
 
 // "used products" answer on an attended case: returns an error text or ""
-export function usedItemsError(used, items) {
+export function usedItemsError(used, items, invoiceType) {
   if (used !== "Yes" && used !== "No") return "Did you use products in this case? Choose Yes or No"
   if (used === "No") return ""
   if (!items.length) return "Add the products that were used"
   if (items.some((r) => !(Number(r.qty) > 0))) return "Each used item needs a quantity"
+  if (items.some((r) => !(Number(r.rate) > 0))) return "Enter the price of each used item"
+  if (!invoiceType) return "Choose the invoice type: System or Cash"
   return ""
 }
 export function usedItemsText(items) {
-  return items.map((r) => `${r.item_name} × ${r.qty}${r.uom ? " " + r.uom : ""}`).join("\n")
+  return items.map((r) => `${r.item_name} × ${r.qty}${r.uom ? " " + r.uom : ""} @ ${price(r.rate)} = ${price(lineTotal(r))}`).join("\n")
+}
+export const lineTotal = (r) => (Number(r.qty) || 0) * (Number(r.rate) || 0)
+export const itemsTotal = (items) => items.reduce((sum, r) => sum + lineTotal(r), 0)
+
+// 1234.5 -> "1,234.5" (prices: up to 2 decimals)
+export function price(n) {
+  return (Number(n) || 0).toLocaleString("en-US", { maximumFractionDigits: 2 })
 }
 
 // 1234567.5 -> "1,234,568" (whole units; debt figures)

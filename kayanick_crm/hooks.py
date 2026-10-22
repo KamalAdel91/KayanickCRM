@@ -248,7 +248,7 @@ add_to_apps_screen = [
 
 
 fixtures = [
-    {"dt": "Role", "filters": [["name", "in", ["KC Rep", "KC Manager", "KC Viewer"]]]},
+    {"dt": "Role", "filters": [["name", "in", ["KC Rep", "KC Manager", "KC Viewer", "KC Accounts"]]]},
     {"dt": "Number Card", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Dashboard Chart", "filters": [["module", "=", "KAYANICK CRM"]]},
     {"dt": "Desktop Icon", "filters": [["name", "=", "Kayanick CRM"]]},
@@ -267,7 +267,9 @@ website_route_rules = [
 ]
 
 before_migrate = ["kayanick_crm.setup.fix_module_def"]
-after_migrate = ["kayanick_crm.setup.fix_module_def", "kayanick_crm.setup.hide_extra_desktop_icons", "kayanick_crm.setup.remove_converted_sidebars"]
+after_install = ["kayanick_crm.setup.make_custom_fields"]
+after_migrate = ["kayanick_crm.setup.fix_module_def", "kayanick_crm.setup.hide_extra_desktop_icons", "kayanick_crm.setup.remove_converted_sidebars",
+                 "kayanick_crm.setup.make_custom_fields"]
 
 # who sees what: see perms.py
 permission_query_conditions = {
@@ -284,6 +286,12 @@ doc_events = {
     "KC Case": {
         "after_insert": "kayanick_crm.notify.case_created",
         "validate": "kayanick_crm.stock_items.validate_stock_items",
+        "on_update": "kayanick_crm.notify.case_updated",
+    },
+    "Sales Order": {
+        "after_insert": "kayanick_crm.notify.order_created",
+        "on_submit": "kayanick_crm.notify.order_submitted",
+        "on_cancel": "kayanick_crm.notify.order_cancelled",
     },
     "Payment Entry": {
         "on_submit": "kayanick_crm.notify.payment_received",

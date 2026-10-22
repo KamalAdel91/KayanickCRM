@@ -6,6 +6,24 @@ MODULE = "KAYANICK CRM"
 SIDEBAR = "Kayanick CRM"
 
 
+# the rep who placed a Sales Order from the app: the app's lists and notifications follow it (perms.scope). Employee
+# User Permissions are ignored on it, so it changes nothing for the users of Sales Order in the Desk.
+CUSTOM_FIELDS = {
+    "Sales Order": [
+        {"fieldname": "kc_employee", "label": "Kayanick Rep", "fieldtype": "Link", "options": "Employee",
+         "insert_after": "customer_name", "read_only": 1, "no_copy": 1, "in_standard_filter": 1,
+         "ignore_user_permissions": 1, "description": "The rep who placed this order from the Kayanick CRM app"},
+    ],
+}
+
+
+def make_custom_fields():
+    """Idempotent: runs after install and after every migrate."""
+    from frappe.custom.doctype.custom_field.custom_field import create_custom_fields
+
+    create_custom_fields(CUSTOM_FIELDS, update=True)
+
+
 def fix_module_def():
     """The site's Module Def row is spelled "Kayanick CRM" and filed under erpnext, while modules.txt
     says "KAYANICK CRM". Frappe 16 places a module's sidebar and dock by that row, so the app's

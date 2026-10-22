@@ -3,11 +3,14 @@ import { ref, computed, onMounted } from "vue"
 import { useRoute, useRouter } from "vue-router"
 import { call } from "../api"
 import { fmt, money } from "../ui"
+import { getOptions } from "../options"
 import Icon from "../components/Icon.vue"
 
 const route = useRoute()
 const router = useRouter()
 const d = ref(null)
+const canOrder = ref(false)
+getOptions().then((o) => (canOrder.value = !!o.can_order)).catch(() => {})
 const error = ref("")
 const toast = ref("")
 
@@ -90,6 +93,8 @@ onMounted(async () => {
             <button type="button" class="btn btn-primary flex-1" @click="shareReminder"><Icon name="bell" :size="15" />Send payment reminder</button>
             <button type="button" class="btn btn-subtle w-9 px-0" aria-label="Copy reminder" @click="copyReminder"><Icon name="clipboard" :size="16" /></button>
           </div>
+          <router-link v-if="canOrder" :to="{ name: 'new-order', query: { customer: d.customer, customer_name: d.customer_name } }"
+            class="btn btn-subtle mt-2 w-full"><Icon name="package" :size="15" />New order for this customer</router-link>
         </div>
         <div v-if="toast" class="toast"><Icon name="check" :size="16" />{{ toast }}</div>
 

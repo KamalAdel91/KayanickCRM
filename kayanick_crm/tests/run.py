@@ -8,7 +8,7 @@ import unittest
 import frappe
 from frappe.tests.utils import toggle_test_mode
 
-MODULES = ("kayanick_crm.tests.test_access", "kayanick_crm.tests.test_notify")
+MODULES = ("kayanick_crm.tests.test_access", "kayanick_crm.tests.test_notify", "kayanick_crm.tests.test_orders")
 
 
 def run(verbosity=2):

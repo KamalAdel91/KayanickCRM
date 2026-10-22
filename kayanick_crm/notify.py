@@ -9,6 +9,10 @@ notifications off (Notification Settings) gets none.
     Case cancelled                    a planned case is cancelled     everyone who sees the case
     Payment received / cancelled      a Payment Entry from a          everyone who sees the customer
                                       customer is submitted / cancelled
+    Case to invoice                   a case is attended with         KC Accounts
+                                      used products and an invoice type
+    New order                         a rep places a Sales Order      everyone who sees the rep, and KC Accounts
+    Order approved / cancelled        KC Accounts submit / cancel it  everyone who sees the rep
     Invoice overdue                   daily at 8:00                   everyone who sees the customer
     Good morning                      daily at 8:00                   each rep: their follow-ups and planned cases
     Overdue debt this week            Sundays at 8:00                 each app user: the customers they see
@@ -18,11 +22,11 @@ from urllib.parse import quote
 import frappe
 from frappe.utils import add_days, get_fullname, get_url, getdate, today
 
-from kayanick_crm.perms import app_users
+from kayanick_crm.perms import accounts_users, app_users, scope
 
 PUSH_PROJECT = "hrms"  # the project Frappe HR uses on the relay (custom names are rejected)
 APP_ROUTE = "/KayanickCRM"
-ROUTES = {"KC Visit": "/visits/", "KC Case": "/case/", "Customer": "/debts/"}
+ROUTES = {"KC Visit": "/visits/", "KC Case": "/case/", "Customer": "/debts/", "Sales Order": "/orders/"}
 REMINDER_PREFIX = "Good morning! You have"
 DEBT_DIGEST_PREFIX = "Overdue debt:"
 
@@ -178,6 +182,27 @@ def _case_cancelled_to_readers(name):
         notify(u, msg, "KC Case", c.name, row.done_by, title=title, body=body)
 
 
+def case_updated(doc, method=None):
+    if doc.invoice_status == "To Invoice" and doc.has_value_changed("invoice_status"):
+        frappe.enqueue("kayanick_crm.notify._case_to_accounts", name=doc.name, enqueue_after_commit=True)
+
+
+def _case_to_accounts(name):
+    """KC Accounts hear about a case to invoice: its invoice type and total."""
+    from kayanick_crm.debt_api import currency
+    from kayanick_crm.perms import user_of
+
+    c = frappe.get_doc("KC Case", name)
+    if c.invoice_status != "To Invoice":
+        return
+    by = user_of(c.employee) or c.owner
+    amount = _money(c.total_amount, currency())
+    msg = "{0} to invoice ({1}): {2} · {3}".format(c.name, c.invoice_type, c.hospital, amount)
+    body = " · ".join(x for x in (c.invoice_type, c.hospital, c.employee_name, amount) if x)
+    for u in accounts_users() - {by}:
+        notify(u, msg, "KC Case", c.name, by, title="🧾 Case to invoice", body=body)
+
+
 # the previous release queued jobs under these names: kept so a job waiting during a deploy still runs
 _visit_to_managers = _visit_to_readers
 _case_to_managers = _case_to_readers
@@ -260,6 +285,53 @@ def _payment_to_readers(name, cancelled=False):
 
 
 _payment_to_rep = _payment_to_readers  # the previous release's name, for jobs queued during a deploy
+
+# ---- orders ----
+
+ORDER_EVENTS = {  # event: (title, what happened)
+    "new": ("📦 New order", "{rep} placed an order for {customer}: {amount}"),
+    "approved": ("✅ Order approved", "Order {name} for {customer} was approved: {amount}"),
+    "cancelled": ("❌ Order cancelled", "Order {name} for {customer} was cancelled"),
+}
+
+
+def order_created(doc, method=None):
+    if doc.get("kc_employee"):
+        frappe.enqueue("kayanick_crm.notify._order_to_readers", name=doc.name, event="new", enqueue_after_commit=True)
+
+
+def order_submitted(doc, method=None):
+    if doc.get("kc_employee"):
+        frappe.enqueue("kayanick_crm.notify._order_to_readers", name=doc.name, event="approved",
+                       enqueue_after_commit=True)
+
+
+def order_cancelled(doc, method=None):
+    if doc.get("kc_employee"):
+        frappe.enqueue("kayanick_crm.notify._order_to_readers", name=doc.name, event="cancelled",
+                       enqueue_after_commit=True)
+
+
+def order_readers(employee):
+    """App users who see the orders of this rep."""
+    return {u for u in app_users() if (s := scope(u)) is None or employee in s}
+
+
+def _order_to_readers(name, event="new"):
+    so = frappe.get_doc("Sales Order", name)
+    rep = frappe.db.get_value("Employee", so.kc_employee, "employee_name") or so.kc_employee
+    amount = _money(so.grand_total, so.currency)
+    title, what = ORDER_EVENTS[event]
+    msg = what.format(rep=rep, customer=so.customer_name or so.customer, amount=amount, name=so.name)
+    users = order_readers(so.kc_employee)
+    actor = so.modified_by
+    if event == "new":
+        users |= accounts_users()
+        actor = so.owner
+    for u in users - {actor}:
+        notify(u, msg, "Sales Order", so.name, actor, title=title,
+               body="{0} · {1} · {2}".format(so.customer_name or so.customer, rep, amount))
+
 
 LAST_DEBT_ALERTS = "kayanick_crm_debt_alerts_last_run"  # DefaultValue: the day debt_alerts last ran
 CATCH_UP_DAYS = 7  # after the scheduler was off, invoices that fell overdue up to this many days ago are announced

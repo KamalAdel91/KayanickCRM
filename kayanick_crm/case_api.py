@@ -95,6 +95,7 @@ def _attach_files(doctype, name, files):
 
 @frappe.whitelist()
 def get_case(name: str):
+    from kayanick_crm.debt_api import currency
     from kayanick_crm.mobile import doctors_text
 
     doc = frappe.get_doc("KC Case", name)
@@ -115,8 +116,11 @@ def get_case(name: str):
         "products": [p.product for p in doc.products],
         "used_products": doc.used_products or "",
         "attended_notes": (doc.attended_notes or "") if attended else "",
-        "used_items": [{"item_code": r.item_code, "item_name": r.item_name, "qty": r.qty, "uom": r.uom}
-                       for r in doc.used_items],
+        "used_items": [{"item_code": r.item_code, "item_name": r.item_name, "qty": r.qty, "uom": r.uom,
+                        "rate": r.rate, "amount": r.amount} for r in doc.used_items],
+        "invoice_type": doc.invoice_type or "", "total_amount": doc.total_amount,
+        "invoice_status": doc.invoice_status or "", "invoice_number": doc.invoice_number or "",
+        "currency": currency(),
         "attachments": attachments("KC Case", doc.name),
         "can_delete": bool(frappe.has_permission("KC Case", "delete", doc=doc)),
         "can_edit": can_edit,
@@ -189,18 +193,20 @@ def reopen_case(name: str):
 def _used_rows(items):
     if isinstance(items, str):
         items = json.loads(items or "[]")
-    return [{"item_code": r.get("item_code"), "qty": frappe.utils.flt(r.get("qty"))}
+    return [{"item_code": r.get("item_code"), "qty": frappe.utils.flt(r.get("qty")), "rate": frappe.utils.flt(r.get("rate"))}
             for r in (items or []) if r.get("item_code")]
 
 
-def _apply_used(doc, used_products, used_items, attended_by=None, attended_notes=None):
-    """Who attended + the used products + his notes, for a case being saved as attended."""
+def _apply_used(doc, used_products, used_items, attended_by=None, attended_notes=None, invoice_type=None):
+    """Who attended, the used products with their prices and invoice type, and the notes, for a case being saved
+    as attended (KCCase.validate checks them)."""
     doc.employee = _attendee(attended_by)
     doc.attended_notes = (attended_notes or "").strip()
     if used_products not in ("Yes", "No"):
         frappe.throw(_("Did you use products in this case? Choose Yes or No"))
     doc.used_products = used_products
     doc.set("used_items", _used_rows(used_items) if used_products == "Yes" else [])
+    doc.invoice_type = invoice_type if used_products == "Yes" else None
 
 
 def _attendee(user):
@@ -241,14 +247,15 @@ def search_items(text: str | None = ""):
 
 
 @frappe.whitelist(methods=["POST"])
-def set_attended(name: str, attended=1, used_products=None, used_items=None, attended_by=None, attended_notes=None):
+def set_attended(name: str, attended=1, used_products=None, used_items=None, attended_by=None, attended_notes=None,
+                 invoice_type: str | None = None):
     doc = frappe.get_doc("KC Case", name)
     doc.check_permission("write")  # on the case as it is now
     if doc.status == "Cancelled":
         frappe.throw(_("This case is cancelled. Reopen it first"))
     if cint(attended):
         doc.status = "Attended"
-        _apply_used(doc, used_products, used_items, attended_by, attended_notes)
+        _apply_used(doc, used_products, used_items, attended_by, attended_notes, invoice_type)
     else:
         doc.status = "Planned"
     doc.flags.handled_by = frappe.session.user
@@ -281,7 +288,8 @@ def create_case(payload):
         "products": [{"product": p} for p in (data.get("products") or []) if p],
     })
     if case.status == "Attended":
-        _apply_used(case, data.get("used_products"), data.get("used_items"), data.get("attended_by"), data.get("attended_notes"))
+        _apply_used(case, data.get("used_products"), data.get("used_items"), data.get("attended_by"),
+                    data.get("attended_notes"), data.get("invoice_type"))
     case.flags.handled_by = frappe.session.user
     # Create permission was checked above; the attendee may be someone outside this user's team
     case.insert(ignore_permissions=True)

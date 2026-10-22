@@ -151,6 +151,9 @@ def get_options():
     # Create permission on KC Hospital / KC Doctor (KC Manager)
     out["can_add_hospital"] = bool(frappe.has_permission("KC Hospital", "create"))
     out["can_add_doctor"] = bool(frappe.has_permission("KC Doctor", "create"))
+    from kayanick_crm.orders_api import can_order
+
+    out["can_order"] = can_order() and not access_problem()
     return out
 
 

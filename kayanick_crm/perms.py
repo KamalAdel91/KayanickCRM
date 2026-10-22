@@ -1,7 +1,8 @@
 """Who can do what and who sees what in Kayanick CRM. Every other module asks here.
 
-- The role decides what a user can do (the DocType permissions): KC Rep logs visits and cases, KC Manager also
-  edits, deletes and manages the lists, KC Viewer reads, System Manager does everything.
+- The role decides what a user can do (the DocType permissions): KC Rep logs visits, cases and orders, KC Manager
+  also edits, deletes and manages the lists, KC Viewer reads, KC Accounts invoices the cases and reviews the
+  orders, System Manager does everything.
 - The scope decides whose records a user sees. It is Frappe's own User Permission on Employee: the user's Employee
   and everyone below it in Reports To. A KC Rep / KC Manager always has it: apply_scope adds it whenever their User
   or Employee is saved, and never removes one. KC Viewer and System Manager have none, so they see everything.
@@ -12,12 +13,15 @@
   whoever sees the rep sees the customer. A customer with no rep is seen only by users who see everything.
 - A notification about a record goes to the app users who can see it, except whoever caused it (see notify.py).
 """
+from contextlib import contextmanager
+
 import frappe
 from frappe import _
 
 APP_ROLES = ("KC Rep", "KC Manager", "KC Viewer")
 FIELD_ROLES = ("KC Rep", "KC Manager")  # people who log visits and attend cases: limited to their team
-EVERYTHING_ROLES = ("System Manager", "KC Viewer")  # no team limit
+ACCOUNTS_ROLE = "KC Accounts"  # invoices the cases' used products and reviews the reps' orders
+EVERYTHING_ROLES = ("System Manager", "KC Viewer", ACCOUNTS_ROLE)  # no team limit
 RECORD_DOCTYPES = ("KC Visit", "KC Case")  # the records that belong to an Employee
 
 
@@ -62,8 +66,16 @@ def app_users():
                               pluck="name")) - {"Administrator", "Guest"}
 
 
+def accounts_users():
+    """Enabled users with KC Accounts."""
+    users = frappe.get_all("Has Role", filters={"parenttype": "User", "role": ACCOUNTS_ROLE}, pluck="parent")
+    return set(frappe.get_all("User", filters={"name": ["in", users or [""]], "enabled": 1},
+                              pluck="name")) - {"Administrator", "Guest"}
+
+
 def sees_everything(user, roles=None):
-    """Administrator, System Manager and KC Viewer have no team limit (a User Permission can still limit them)."""
+    """Administrator, System Manager, KC Viewer and KC Accounts have no team limit (a User Permission can still
+    limit them)."""
     roles = set(roles if roles is not None else frappe.get_roles(user))
     return user == "Administrator" or bool(roles & set(EVERYTHING_ROLES))
 
@@ -166,6 +178,22 @@ def record_query_conditions(user=None, doctype=None):
 def has_record_permission(doc, ptype=None, user=None, debug=False):
     """One record: the same rule as record_query_conditions. True leaves the decision to Frappe."""
     return scope(user or frappe.session.user) != set()
+
+
+@contextmanager
+def as_administrator():
+    """Runs a block as Administrator, then gives the session back unchanged: frappe.set_user alone would also reset
+    the session's sid and data (which hold the CSRF token) in the middle of a web request. Use it only after the
+    app has checked that the user may do what the block does."""
+    session, form_dict, user = frappe.local.session, frappe.local.form_dict, frappe.session.user
+    sid, data = session.sid, session.data
+    frappe.set_user("Administrator")
+    try:
+        yield
+    finally:
+        frappe.set_user(user)
+        session.sid, session.data = sid, data
+        frappe.local.form_dict = form_dict
 
 
 def is_app_user(user=None):

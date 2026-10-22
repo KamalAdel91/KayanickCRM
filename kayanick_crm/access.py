@@ -8,7 +8,8 @@ import frappe
 
 from kayanick_crm.perms import employee_of, is_field_user, scope, sees_everything
 
-ROLE_ORDER = ("System Manager", "KC Manager", "KC Viewer", "KC Rep")
+ROLE_ORDER = ("System Manager", "KC Accounts", "KC Manager", "KC Viewer", "KC Rep")
+ORDER_SUBMIT_ROLES = ("Sales User", "Sales Manager", "System Manager")  # can submit a Sales Order
 KC_DOCTYPES = ("KC Visit", "KC Case", "KC Hospital", "KC Doctor", "KC Area", "KC Hospital Type", "KC Visit Purpose",
                "KC Visit Outcome", "KC Relationship Level", "KC Product")
 
@@ -48,6 +49,8 @@ def problems(user, roles, employee):
             out.append("A manager with nobody below them in Reports To: sees only their own records")
     elif sees_everything(user, roles) and allowed is not None:
         out.append("Should see everything but is limited by Create User Permission on their Employee: untick it")
+    if "KC Accounts" in roles and not set(frappe.get_roles(user)) & set(ORDER_SUBMIT_ROLES):
+        out.append("KC Accounts without Sales User: can't submit the reps' orders")
     return out
 
 

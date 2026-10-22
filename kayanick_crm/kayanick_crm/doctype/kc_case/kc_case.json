@@ -130,11 +130,71 @@
    "mandatory_depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'"
   },
   {
+   "fieldname": "invoice_type",
+   "fieldtype": "Select",
+   "label": "Invoice Type",
+   "options": "\nSystem\nCash",
+   "depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'",
+   "in_standard_filter": 1,
+   "description": "System: invoiced in the system. Cash: paid in cash."
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Currency",
+   "label": "Total",
+   "read_only": 1,
+   "depends_on": "eval:doc.status=='Attended' && doc.used_products=='Yes'"
+  },
+  {
    "fieldname": "attended_notes",
    "fieldtype": "Small Text",
    "label": "Attendance Notes",
    "depends_on": "eval:doc.status=='Attended'",
    "mandatory_depends_on": "eval:doc.status=='Attended'"
+  },
+  {
+   "fieldname": "sb_invoice",
+   "fieldtype": "Section Break",
+   "label": "Invoice",
+   "depends_on": "eval:doc.invoice_status"
+  },
+  {
+   "fieldname": "invoice_status",
+   "fieldtype": "Select",
+   "label": "Invoice Status",
+   "options": "\nTo Invoice\nInvoiced",
+   "read_only": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "search_index": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "invoice_number",
+   "fieldtype": "Data",
+   "label": "Invoice Number",
+   "permlevel": 1,
+   "no_copy": 1,
+   "description": "Accounts: type the number of the invoice issued for this case."
+  },
+  {
+   "fieldname": "cb_invoice",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "invoiced_by",
+   "fieldtype": "Link",
+   "label": "Invoiced By",
+   "options": "User",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "invoiced_on",
+   "fieldtype": "Datetime",
+   "label": "Invoiced On",
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "sb_log",
@@ -168,7 +228,15 @@
   "sb_used",
   "used_products",
   "used_items",
+  "invoice_type",
+  "total_amount",
   "attended_notes",
+  "sb_invoice",
+  "invoice_status",
+  "invoice_number",
+  "cb_invoice",
+  "invoiced_by",
+  "invoiced_on",
   "sb_log",
   "log"
  ],
@@ -211,6 +279,41 @@
    "report": 1,
    "print": 1,
    "export": 1
+  },
+  {
+   "role": "KC Accounts",
+   "read": 1,
+   "report": 1,
+   "print": 1,
+   "write": 1,
+   "export": 1
+  },
+  {
+   "role": "System Manager",
+   "permlevel": 1,
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "KC Accounts",
+   "permlevel": 1,
+   "read": 1,
+   "write": 1
+  },
+  {
+   "role": "KC Manager",
+   "permlevel": 1,
+   "read": 1
+  },
+  {
+   "role": "KC Rep",
+   "permlevel": 1,
+   "read": 1
+  },
+  {
+   "role": "KC Viewer",
+   "permlevel": 1,
+   "read": 1
   }
  ],
  "sort_field": "modified",
