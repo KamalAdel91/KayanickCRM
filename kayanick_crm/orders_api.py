@@ -10,6 +10,7 @@ submit it. An order belongs to the rep (Sales Order.kc_employee), and who sees i
 (perms.scope). Reps have no permission on Sales Order, so the orders are read and written here.
 """
 import json
+from contextlib import contextmanager
 
 import frappe
 from frappe import _
@@ -110,15 +111,33 @@ def _fill(order, customer, employee, invoice_type, items, transaction_date, deli
         order.append("sales_team", {"sales_person": person, "allocated_percentage": 100})
 
 
+@contextmanager
+def price_list_kept(item_codes):
+    """The rep's price stays on the order. ERPNext's Stock Settings ("Update Existing Price List Rate", "Auto Insert
+    Price List Rate If Missing") would copy it into the price list when the order is saved: such changes to these
+    items' Item Prices are undone, in the same transaction."""
+    fields = ["name", "price_list_rate", "modified", "modified_by"]
+    filters = {"item_code": ["in", list(set(item_codes)) or [""]]}
+    before = {r.name: r for r in frappe.get_all("Item Price", filters=filters, fields=fields)}
+    yield
+    for r in frappe.get_all("Item Price", filters=filters, fields=fields):
+        old = before.get(r.name)
+        if not old:
+            frappe.db.delete("Item Price", {"name": r.name})
+        elif flt(old.price_list_rate) != flt(r.price_list_rate):
+            frappe.db.set_value("Item Price", r.name, {"price_list_rate": old.price_list_rate, "modified": old.modified,
+                                                       "modified_by": old.modified_by}, update_modified=False)
+
+
 def _save(order):
     """Saves the order for the current user, after the app checked their right to order.
 
     Reps have no permission on Sales Order or Item (it shows the valuation rate), and ERPNext checks Item while it
     fills the item details. So the order is saved as Administrator, and a new one is given back to the user as its
-    owner."""
+    owner. The price list is not touched (price_list_kept)."""
     user = frappe.session.user
     new = order.is_new()
-    with as_administrator():
+    with as_administrator(), price_list_kept([row.item_code for row in order.items]):
         if new:
             order.insert(ignore_permissions=True)
         else:

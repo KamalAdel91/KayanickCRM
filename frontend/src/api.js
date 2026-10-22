@@ -1,8 +1,9 @@
 function errorText(body, status) {
   try {
+    // alerts (e.g. ERPNext's "Item Price updated ...") are side notes, not the reason the request failed
     if (body._server_messages) {
-      const msgs = JSON.parse(body._server_messages).map((m) => JSON.parse(m).message)
-      return msgs.join("\n").replace(/<[^>]+>/g, "")
+      const msgs = JSON.parse(body._server_messages).map((m) => JSON.parse(m)).filter((m) => !m.alert).map((m) => m.message)
+      if (msgs.length) return msgs.join("\n").replace(/<[^>]+>/g, "")
     }
   } catch (e) {}
   if (body.exception) return String(body.exception).split(":").slice(1).join(":").trim() || String(body.exception)

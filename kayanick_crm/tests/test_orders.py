@@ -114,6 +114,26 @@ class TestOrders(OrdersTestCase):
             self.assertEqual((frappe.session.user, session.sid, session.data.csrf_token, frappe.local.form_dict.cmd),
                              (t.rep_a, "test-sid", "test-token", "kayanick_crm.orders_api.create_order"))
 
+    def test_price_list_is_kept(self):
+        """The rep's price stays on the order even when Stock Settings would copy it into the price list."""
+        for field in ("update_existing_price_list_rate", "auto_insert_price_list_rate_if_missing"):
+            frappe.db.set_single_value("Stock Settings", field, 1)
+        frappe.clear_document_cache("Stock Settings", "Stock Settings")
+        self.addCleanup(frappe.clear_document_cache, "Stock Settings", "Stock Settings")
+        price_list = frappe.db.get_single_value("Selling Settings", "selling_price_list")
+        frappe.db.delete("Item Price", {"item_code": self.item, "price_list": price_list})
+        price = frappe.get_doc({"doctype": "Item Price", "item_code": self.item, "price_list": price_list,
+                                "price_list_rate": 5000}).insert(ignore_permissions=True)
+        other = first("Item", {"is_sales_item": 1, "disabled": 0, "has_variants": 0, "name": ["!=", self.item]})
+        frappe.db.delete("Item Price", {"item_code": other})
+        with as_user(self.t.rep_a):
+            name = create_order({"customer": make_customer("Price"), "invoice_type": "Cash",
+                                 "items": [{"item_code": self.item, "qty": 1, "rate": 777},
+                                           {"item_code": other, "qty": 1, "rate": 888}]})["name"]
+        self.assertEqual([i.rate for i in frappe.get_doc("Sales Order", name).items], [777, 888])
+        self.assertEqual(frappe.db.get_value("Item Price", price.name, "price_list_rate"), 5000)
+        self.assertFalse(frappe.db.exists("Item Price", {"item_code": other}))
+
     def test_orders_follow_scope(self):
         t = self.t
         name = self.order(t.rep_a, make_customer("Scope"))
